@@ -238,7 +238,7 @@ Every field can be edited.
 **Average cost and P&L**:
 - The holding's cost is the weighted average of its buys, and a sale does not change it.
 - After a sale to zero, the next buy starts a new average.
-- P&L everywhere is net of fees: cost includes buy fees, and value subtracts estimated sell fees. The exception is the position-risk panel, which shows the price move without fees.
+- P&L is net of fees everywhere, the position-risk panel included: cost includes buy fees, and value subtracts estimated sell fees.
 
 **Lots** are kept first in, first out: each buy is a lot, and sales use the oldest lots first.
 - On Pro, the close form can choose which lots to report as closed. That changes only the journal's per-lot breakdown; the lot records still close oldest first.

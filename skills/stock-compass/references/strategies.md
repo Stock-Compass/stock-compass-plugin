@@ -117,7 +117,7 @@ Import rules:
 
 - `name` is required, up to 60 characters.
 - `market` is `hk`, `us` or `cn`. If it is left out, the current market is used.
-- `buy` must have at least one condition.
+- `buy` must have at least one condition. The builder requires this too: a strategy without one can never give a buy signal.
 - Every indicator key must exist; a near miss gets a "did you mean" suggestion.
 - Operators must suit the indicator's type. Boolean values may be `true` / `false` or `1` / `0`.
 - After import, the builder opens so the user can review and save.
