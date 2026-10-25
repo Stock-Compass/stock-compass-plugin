@@ -1,5 +1,7 @@
 <p align="center"><img src="assets/icon.png" width="96" alt="Stock Compass"></p>
 
+<p align="center"><b>English</b> · <a href="README.zh-CN.md">简体中文</a></p>
+
 # Stock Compass for Claude
 
 Use your [Stock Compass](https://stock-compass.app) records in a conversation with Claude. You can ask about your watchlist, holdings, signals and trades, and tell Claude to record a trade, change a stop or target, or set a price alert. It covers Hong Kong, US and China A-shares.
@@ -68,26 +70,6 @@ The same connector works with any app that supports remote MCP servers with OAut
 ## Support
 
 Email support@stock-compass.app or [open an issue](https://github.com/Stock-Compass/stock-compass-plugin/issues).
-
----
-
-## 中文说明
-
-在和 Claude 的对话里使用你的 [Stock Compass](https://stock-compass.app) 记录，支持港股、美股和 A 股。能查看自选股、持仓、信号和交易，也能让 Claude 记录买卖、改止损和目标、设价格提醒。
-
-**只记账，不会去券商下单。** 需要 Stock Compass **Pro** 账号。
-
-**安装**
-
-- **claude.ai 或桌面版**：
-  1. 打开 Customize → Plugins → Add → Add marketplace，填 `Stock-Compass/stock-compass-plugin`。
-  2. 安装 Stock Compass。
-  3. 在插件的 Connectors 标签里点连接，登录 Stock Compass 并授权。
-- **Claude Code**：运行上面的两条命令，再在会话里输入 `/mcp` 登录。
-
-**授权**：默认只读。勾选「修改」后，才能改自选股、记录买卖、改止损和目标、设价格提醒。随时可以在网站「设置 → AI 应用与 API」里断开，断开后立即失效。
-
-**数据**：Claude 只读取它需要的记录，并只提交你确认过的改动。你的登录凭证在 Stock Compass 只存哈希。每次改动都有记录，可以在设置页查看。详见[隐私政策](https://stock-compass.app/zh/privacy)。
 
 ## License
 
