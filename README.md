@@ -8,6 +8,16 @@ Use your [Stock Compass](https://stock-compass.app) records from any AI app or a
 
 **It only keeps records.** Recording a trade writes it into your Stock Compass journal. It never places an order with a broker. Connecting needs a Stock Compass **Pro** account.
 
+## Let your AI set it up
+
+Paste this into your AI app (Claude, ChatGPT, Claude Code, Cursor or any other):
+
+```text
+Set me up with Stock Compass: open https://stock-compass.app/ai/setup.md and follow it step by step to install it, sign me up and get me started.
+```
+
+The AI reads the [setup guide](https://stock-compass.app/ai/setup.md) and walks you through connecting your app. If you have no account yet, it also helps you sign up; new accounts get a free Pro trial with no card. You sign in on stock-compass.app itself and never give the AI your password. To do it by hand instead, see [Connect your AI app](#connect-your-ai-app).
+
 ## What is in this repository
 
 | | What it does | Works with |

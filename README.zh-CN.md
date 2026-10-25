@@ -12,6 +12,16 @@
 
 **只记账。** 记录一笔交易，就是把它写进你在 Stock Compass 的交易日志，不会去券商下单。连接需要 Stock Compass **Pro** 账号。
 
+## 让 AI 帮你接入
+
+把这段话发给你在用的 AI（Claude、ChatGPT、Claude Code、Cursor 等都可以）：
+
+```text
+帮我接入 Stock Compass：打开 https://stock-compass.app/ai/setup.md ，按里面的步骤一步步带我完成安装、注册和第一次使用。
+```
+
+AI 会读取[接入指南](https://stock-compass.app/ai/setup.md)，一步步带你把应用连上。还没有账号的话，它也会带你注册；新账号可以免费试用 Pro，不用绑卡。登录只在 stock-compass.app 上进行，不需要把密码告诉 AI。想自己动手，见下面的[连接你的 AI 应用](#连接你的-ai-应用)。
+
 ## 仓库里有什么
 
 | | 作用 | 适用于 |
