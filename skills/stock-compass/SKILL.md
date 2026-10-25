@@ -101,8 +101,8 @@ Writes change the user's records in Stock Compass. They never place an order wit
 
 Error messages are written for the user; pass them on plainly.
 
-- **"This connection may only read"**: the user approved read-only access. To allow changes, they disconnect the app in Stock Compass (Settings → AI apps & API / 设置 → AI 应用与 API) and connect again with changes ticked, or use an API key with writes allowed.
+- **"This connection may only read"**: the user approved read-only access. To allow changes, they disconnect the app in Stock Compass (Settings → AI apps & API) and connect again with changes ticked, or use an API key with writes allowed.
 - **"part of Stock Compass Pro"**: the account is not on Pro.
 - **Any other refusal**, such as not on the watchlist, still held, more shares than held, or a limit reached: the message says what to do. Offer that step, and ask first.
 
-Reply in the user's language. In Chinese, the markets are 港股, 美股 and A股.
+Reply in the user's language. The site is in English and Chinese: when you name a page, button or setting, use the label the user's site shows. The reference files give each label in English, with the Chinese one in brackets.

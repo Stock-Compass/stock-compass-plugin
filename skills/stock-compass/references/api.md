@@ -2,6 +2,8 @@
 
 Read this when the user wants to connect an AI app, an agent or a script to Stock Compass, or asks about API keys, rate limits or the REST endpoints.
 
+**Labels.** Buttons are named as the English site shows them, followed by the Chinese site's label in brackets. When you point the user to one, use the label for the language their site is in.
+
 All access is to the signed-in user's own records, and needs a Stock Compass **Pro** account (or an admin account). The plan is checked on every call, so access stops when Pro lapses.
 
 ## Two ways in
@@ -11,7 +13,7 @@ All access is to the signed-in user's own records, and needs a Stock Compass **P
 | Best for | AI apps that support MCP with OAuth (Claude, ChatGPT, many others) | Scripts, command-line agents, and apps that can only send a fixed header |
 | How it starts | The app opens stock-compass.app; the user signs in and approves | The user creates a key in Settings → AI apps & API (设置 → AI 应用与 API) |
 | Secret the user handles | None | The key, shown once |
-| Read only or read and write | Chosen on the approval page; read only by default | Chosen when the key is created ("Allow writes" / 允许写入) |
+| Read only or read and write | Chosen on the approval page; read only by default | Chosen when the key is created: **Allow writes** (允许写入) |
 | Works with | `/api/mcp` | `/api/mcp` and `/api/v1` (REST) |
 | Ends | Disconnect in Settings → AI apps & API | Revoke in the same place, or the key's expiry |
 
@@ -22,7 +24,7 @@ Recording a trade through either one writes it into Stock Compass. Neither ever 
 ## API keys
 
 - A key looks like `sc_` followed by 43 letters, digits, `-` or `_`. It is shown once, when it is created. Stock Compass stores only a SHA-256 hash of it, so it cannot be shown again.
-- When creating a key, the user gives it a name (up to 60 characters) and picks an expiry: 30 days, 90 days, 1 year, or never. Writes are allowed only if "Allow writes" is ticked.
+- When creating a key, the user gives it a name (up to 60 characters) and picks an expiry: 30 days, 90 days, 1 year, or never. Writes are allowed only if **Allow writes** (允许写入) is ticked.
 - A user can have at most 5 active keys. Revoking a key takes effect at once.
 - Send the key as a header on every request: `Authorization: Bearer sc_…`.
 - Treat a key as a password. Keep it in the agent's or the script's own secret settings, never in a conversation, a shared file or a repository. If it leaks, revoke it.
@@ -49,6 +51,8 @@ The MCP endpoint is `https://stock-compass.app/api/mcp`. It uses Streamable HTTP
 | Scripts, or tools without MCP | Use the REST API below with an API key. |
 
 These menu paths are the apps' own and can change. If one has moved, look for the app's setting for adding a remote MCP server or connector.
+
+**The approval page.** The app opens stock-compass.app, where the user signs in, or signs up, and approves. Access is read only by default, and the button reads **Allow reading** (允许读取). To allow changes, the user ticks **Make changes** (修改) first, and the button becomes **Allow reading and changes** (允许读取和修改). **Deny** (拒绝) refuses. An account that is not on Pro but can still start the free trial sees **Start the N-day free trial and continue** (免费试用 N 天并继续).
 
 ### Tools and endpoints
 
