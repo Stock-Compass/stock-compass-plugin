@@ -30,7 +30,7 @@ Connecting needs Stock Compass Pro. If the tools are not available, explain how 
 
 | Tool | Reads or writes |
 | --- | --- |
-| `get_watchlist` | Reads the watchlist and holdings, with quantity, cost, and the stop and target in force |
+| `get_watchlist` | Reads the watchlist and holdings, with quantity, cost, the stop and target in force, the entry plan and every stop change |
 | `get_signals` | Reads the signals from each market's active strategy, newest first |
 | `get_trades` | Reads recorded buys and sells, newest first |
 | `get_price_alerts` | Reads price alerts, and whether and when each fired |
@@ -54,8 +54,10 @@ Prices are in the stock's own currency: HKD, USD or CNY.
 
 ## Reading
 
+- `get_watchlist` takes `holding: true` for holdings only. Each holding has `opened_at`, the stop and target set at entry (`entry_stop`, `entry_target`), and `stop_history`, every change of the stop since.
 - `get_signals` covers the last 7 days by default (`days` up to 90). Types default to buy, add, exit and trim; ask for `price_alert` too when the user wants alerts that fired.
 - Buy and add signals are recorded once the daily bar is final, after the close. Exit and trim are recorded during the session. A card the dashboard shows as provisional ("Intraday · confirmed at close") is not in the results yet.
+- A rule that stays true is recorded again on every bar, so the same exit can appear day after day. Each signal has `active_since`, the first day of that run, and `occurrences`. Report a run once, with the date it began ("the exit rule on ANF has fired every day since 2026-10-19"), not as five new signals. `state: "new"` returns only the first day of each run.
 - `get_trades` returns 100 trades by default (`limit` up to 500). Use `offset` for more.
 - The connection allows 60 requests a minute. Prefer one `get_watchlist` over a call per stock.
 
@@ -78,22 +80,23 @@ Writes change the user's records in Stock Compass. They never place an order wit
 
 ### record_trade
 
-- The stock must be on the watchlist. If the call says it is not, offer to add it with `add_to_watchlist`, and ask first.
+- The stock must be on the watchlist. If the call says it is not, offer to add it, and ask first: then send the trade again with `add_to_watchlist: true`, which adds it and records the buy in one call.
 - `price` is the price per share, without fees. Stock Compass computes the fees from the user's own trading-cost settings and returns them.
 - `quantity` is whole shares.
-- `traded_at` is the trade date in that market (`YYYY-MM-DD`). It defaults to today there and cannot be in the future. Pass the user's date if they traded earlier.
+- `traded_at` is the trade date in that market (`YYYY-MM-DD`). It defaults to today there and cannot be in the future. Pass the user's date if they traded earlier. Trades on the same date count in the order they are recorded, so record a day's trades in the order they happened.
+- A trade sent twice is recorded twice. If a call fails without an answer, check `get_trades` before sending it again.
 - **Buy**:
   - Leave `trigger` out unless the user says why they bought. Without it, Stock Compass files the buy as on a signal if the stock had a buy signal in the last 14 days (for a stock already held, an add or buy signal), otherwise as manual.
-  - Pass `manual` when the user says the buy did not follow a signal, and `signal` only when they say it did.
+  - Pass `manual` when the user says the buy did not follow a signal, and `signal` only when they say it did. Pass `other` for a buy that was neither, such as a rebalance; it counts on neither side of the journal's rules-vs-gut comparison.
   - `stop`, `target` and `thesis` are optional. Pass them when the user gives them; a stop set at entry is part of what the journal's execution record measures.
 - **Sell**:
-  - `close_reason` is one of `rule_exit`, `rule_trim`, `manual_stop`, `manual_target` or `other`. `lesson` is optional.
+  - `close_reason` is one of `rule_exit` (the strategy's exit rule fired), `rule_trim` (its trim rule fired), `manual_stop` (the user's own stop), `manual_target` (the user's own target) or `other`. `lesson` is optional.
   - A sale that brings the holding to zero closes the journal entries with that reason, or `other`.
   - Selling more shares than were held on that date is refused; the earlier buy has to be recorded first.
 
 ### The other writes
 
-- `set_stop_target` changes the open position's current stop and/or target. Only the value you pass changes, and `null` clears it. The planned levels from entry are kept as they were.
+- `set_stop_target` changes the open position's current stop and/or target. Only the value you pass changes, and `null` clears it. The planned levels from entry are kept as they were, and each stop change is added to the position's `stop_history`.
 - `remove_from_watchlist` is refused while the stock is held. It deletes the stock's price alerts, so say so when you confirm; trades, the journal and signals are kept.
 - `create_price_alert` takes `direction` (`above` or `below`), `threshold` and an optional `note`. It is checked at each scan and fires once.
 
