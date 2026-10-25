@@ -1,6 +1,6 @@
 {
   "name": "stock-compass",
-  "description": "The Stock Compass plugin for Claude: your watchlist, signals, trades and journal in a conversation.",
+  "description": "Stock Compass for AI apps: the MCP connector and a skill covering all of Stock Compass.",
   "owner": {
     "name": "Stock Compass",
     "email": "support@stock-compass.app",

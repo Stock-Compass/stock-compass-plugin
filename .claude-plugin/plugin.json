@@ -1,8 +1,8 @@
 {
   "name": "stock-compass",
   "displayName": "Stock Compass",
-  "version": "1.0.0",
-  "description": "Your Stock Compass watchlist, holdings, signals and trades in a conversation: read them, and record trades, stops, targets and price alerts. Hong Kong, US and China A-shares. Records only; never places an order. Needs a Stock Compass Pro account.",
+  "version": "1.1.0",
+  "description": "Your Stock Compass watchlist, holdings, signals, trades and journal in a conversation, and a skill that explains all of Stock Compass: strategies and indicators, backtests, fees, execution discipline, alerts, plans and the API. Hong Kong, US and China A-shares. Records only; never places an order. Needs a Stock Compass Pro account.",
   "author": {
     "name": "Stock Compass",
     "email": "support@stock-compass.app",
@@ -11,7 +11,16 @@
   "homepage": "https://stock-compass.app",
   "repository": "https://github.com/Stock-Compass/stock-compass-plugin",
   "license": "MIT",
-  "keywords": ["stocks", "trading-journal", "watchlist", "hong-kong", "a-shares", "mcp"],
+  "keywords": [
+    "stocks",
+    "trading-journal",
+    "watchlist",
+    "backtest",
+    "hong-kong",
+    "a-shares",
+    "mcp",
+    "agent-skills"
+  ],
   "icon": "./assets/icon.png",
   "documentationUrl": "https://github.com/Stock-Compass/stock-compass-plugin#readme",
   "supportUrl": "https://github.com/Stock-Compass/stock-compass-plugin/issues",
