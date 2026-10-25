@@ -1,0 +1,16 @@
+{
+  "name": "stock-compass",
+  "description": "The Stock Compass plugin for Claude: your watchlist, signals, trades and journal in a conversation.",
+  "owner": {
+    "name": "Stock Compass",
+    "email": "support@stock-compass.app",
+    "url": "https://stock-compass.app"
+  },
+  "plugins": [
+    {
+      "name": "stock-compass",
+      "source": "./",
+      "category": "finance"
+    }
+  ]
+}

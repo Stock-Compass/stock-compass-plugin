@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "stock-compass": {
+      "type": "http",
+      "url": "https://stock-compass.app/api/mcp"
+    }
+  }
+}
