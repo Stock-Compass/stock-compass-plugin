@@ -67,6 +67,8 @@ The MCP tools map one to one onto the REST endpoints below:
 | `add_to_watchlist` | `POST /watchlist` |
 | `remove_from_watchlist` | `DELETE /watchlist/{ticker}` |
 | `record_trade` | `POST /trades` |
+| `edit_trade` | `PATCH /trades/{id}` |
+| `delete_trade` | `DELETE /trades/{id}` |
 | `set_stop_target` | `PATCH /positions/{ticker}` |
 | `create_price_alert` | `POST /alerts` |
 
@@ -190,14 +192,15 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 
 ### GET /trades
 
-Query: `market`, `ticker`, `from`, `to` (all optional); `limit` (1–500, default 100); `offset` (default 0).
+Query: `market`, `ticker`, `from`, `to`, `external_id` (all optional); `limit` (1–500, default 100); `offset` (default 0).
 
-Results are newest first.
+Results are newest first. `external_id` is null for a trade recorded without one, such as on the website.
 
 ```json
 { "trades": [
     { "id": "…", "ticker": "0700.HK", "market": "hk", "type": "buy", "price": 382.4,
-      "quantity": 200, "traded_at": "2026-10-23", "recorded_at": "2026-10-23T03:00:00Z" }
+      "quantity": 200, "traded_at": "2026-10-23", "recorded_at": "2026-10-23T03:00:00Z",
+      "external_id": "FUTU-8231" }
   ], "limit": 100, "offset": 0 }
 ```
 
@@ -218,6 +221,7 @@ Records a buy or sell the user made, exactly as the trade form on the website do
 | `close_reason` | sell only | `rule_exit`, `rule_trim`, `manual_stop`, `manual_target` or `other`. |
 | `lesson` | sell only | Up to 1000 characters. |
 | `add_to_watchlist` | no | `true`: for a buy of a stock not on the watchlist, add it first, as `POST /watchlist` does. Default `false`. |
+| `external_id` | no | The client's own id for the trade, such as the broker's order number: 1 to 100 characters. See below. |
 
 - **Fees** are worked out from the user's own trading-cost settings for that market, and the response returns them. See [Cost, fees and P&L](#cost-fees-and-pl).
 - **`trigger`** says why the user bought. The journal's **By rules** (按规则操作) vs **By gut feel** (凭直觉操作) comparison is built on it.
@@ -234,17 +238,61 @@ Records a buy or sell the user made, exactly as the trade form on the website do
 - **Selling to zero** closes the journal entries with `close_reason`, or with `other`. A partial sale closes the oldest open journal entries first (FIFO).
 - **Selling more** than was held on `traded_at` gives 409 `oversell`. A sale of a stock not on the watchlist gives the same: nothing is held.
 - **With `add_to_watchlist`**, the stock is added only once the rest of the request is valid. The answer then has `"added_to_watchlist": true`; a stock the quote source does not know gives 404 `unknown_ticker`, and a full watchlist 403 `limit`.
-- **Not idempotent**: sending the same trade twice records it twice. After a timeout, check `GET /trades` before sending again.
+- **`external_id`** guards against recording a trade twice. It is unique per user and market.
+  - Sent again, the same id records nothing and answers 409 `exists`, with the trade already recorded under it beside the error: `{ "error": { … }, "trade": { "id": "…", … } }`. That is so whatever else the request says.
+  - So a request that timed out can be sent again as it was. Two requests at once with the same id record one trade.
+  - Once that trade is deleted, the id is free again.
+  - Without `external_id`, sending the same trade twice records it twice.
+- **Same-day order**: trades on one date count in the order they are recorded. See [Dates and times](#dates-and-times).
 
 Answers 201:
 
 ```json
 { "trade_id": "…", "ticker": "0700.HK", "market": "hk", "type": "buy", "price": 382.4, "quantity": 200,
-  "traded_at": "2026-10-23", "fees": 64.4, "shares_before": 0, "shares_after": 200, "cash": 12345.6,
+  "traded_at": "2026-10-23", "external_id": "FUTU-8231", "fees": 64.4, "shares_before": 0, "shares_after": 200, "cash": 12345.6,
   "journal_entry_id": 42, "trigger": { "type": "signal", "signal_id": 123, "signal_date": "2026-10-22" } }
 ```
 
-For a sale, `journal_closed_shares` takes the place of `journal_entry_id` and `trigger`.
+For a sale, `journal_closed_shares` takes the place of `journal_entry_id` and `trigger`. `external_id` is there only when one was sent.
+
+### PATCH /trades/{id}
+
+Corrects a recorded trade, as the trade list on the website does. Body: any of `price`, `quantity` and `traded_at`; what is left out stays as it was.
+
+- **Cash** moves by the difference. **Fees** are worked out again from the user's current trading-cost settings.
+- **The holding** is recomputed from all the trades.
+- **The journal**: a buy's entry takes the new shares, and the new price and date where the entry still had the trade's old ones; a sale with the same quantity updates the entries it closed, with their returns. An entry that no longer matched the trade is left as it was, and `journal_review` says so.
+- **The side and the ticker** cannot change (400): that is another trade. Delete it and record the right one.
+- **A change that would leave a sell of shares not held at the time** is refused with 409 `oversell`, and nothing changes.
+- `external_id` stays with the trade.
+
+Answers 200:
+
+```json
+{ "trade": { "id": "…", "ticker": "0700.HK", "market": "hk", "type": "buy", "price": 381, "quantity": 200,
+             "traded_at": "2026-10-23", "recorded_at": "…", "external_id": "FUTU-8231" },
+  "fees": 64.53, "cash": 12345.6, "shares_after": 200, "journal_updated": 1, "journal_review": null }
+```
+
+Nothing to change gives `{ "trade": {…}, "unchanged": true }`. When the journal needs a look, `journal_review` is `{ "kind": "buy_entry" | "sell_close", "date": "2026-10-23", "message": "…" }`; pass the message on.
+
+### DELETE /trades/{id}
+
+Deletes a trade recorded by mistake, as the trade list on the website does.
+
+- **Cash** gets back what the trade moved, and **the holding** is recomputed: deleting a buy puts the shares and cost back to what they were without it.
+- **A buy's journal entry** is deleted with it while it is still exactly that buy (wholly open, same shares). Otherwise it stays, and `journal_review` says so.
+- **A deleted sale does not reopen** the journal entries it closed: their close reasons and lessons are the user's. `journal_review` points at them.
+- **A buy whose shares a later sale used** cannot be deleted: 409 `oversell`, and nothing changes. Correct or delete that sale first.
+- The trade's `external_id` becomes free to use again.
+
+Answers 200:
+
+```json
+{ "deleted": true, "trade": { "id": "…", "ticker": "0700.HK", "type": "sell", … },
+  "cash_reversed": -76800, "cash": 1234.5, "shares_after": 200, "journal_deleted": 0,
+  "journal_review": { "kind": "sell_close", "date": "2026-10-23", "message": "…" } }
+```
 
 ### PATCH /positions/{ticker}
 
@@ -297,10 +345,11 @@ The `message` is written for the user; pass it on.
 | 404 | `unknown_ticker` | The ticker is not at the market's quote source. |
 | 404 | `not_on_watchlist` | Removing a stock that is not on the watchlist. |
 | 404 | `no_open_position` | Setting levels on a stock that is not held. |
-| 409 | `exists` | Already on the watchlist, or the same alert already exists. |
+| 404 | `trade_not_found` | No trade of this user has that id. |
+| 409 | `exists` | Already on the watchlist, the same alert already exists, or a trade is already recorded with that `external_id` (the body also has the `trade`). |
 | 409 | `holding` | Removing a stock that is still held. |
 | 409 | `not_on_watchlist` | Recording a trade in a stock that is not on the watchlist. |
-| 409 | `oversell` | Selling more than was held on that date. |
+| 409 | `oversell` | Selling more than was held on that date; or a correction or deletion that would leave a sale of shares not held. |
 | 422 | `no_recent_signal` | `trigger: signal` with no recent signal. |
 | 429 | `rate_limited` | More than 60 requests in a minute; retry after 60 seconds. |
 | 500 | `internal` | Something went wrong on the server. Try again later. |
@@ -315,7 +364,9 @@ Any request can also give 401, 403 `pro_required`, 429 and 500. Besides those:
 | `DELETE /watchlist/{ticker}` | 400, 403 `scope`, 404 `not_on_watchlist`, 409 `holding` |
 | `GET /signals` | 400 `bad_request` |
 | `GET /trades` | 400 `bad_request` or `bad_ticker` |
-| `POST /trades` | 400, 403 `scope` or `limit`, 404 `unknown_ticker`, 409 `not_on_watchlist` or `oversell`, 422 `no_recent_signal` |
+| `POST /trades` | 400, 403 `scope` or `limit`, 404 `unknown_ticker`, 409 `exists`, `not_on_watchlist` or `oversell`, 422 `no_recent_signal` |
+| `PATCH /trades/{id}` | 400, 403 `scope`, 404 `trade_not_found`, 409 `oversell` |
+| `DELETE /trades/{id}` | 400, 403 `scope`, 404 `trade_not_found`, 409 `oversell` |
 | `PATCH /positions/{ticker}` | 400, 403 `scope`, 404 `no_open_position` |
 | `GET /alerts` | 400 `bad_request` |
 | `POST /alerts` | 400, 403 `scope` or `limit`, 409 `exists` |

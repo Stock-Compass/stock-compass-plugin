@@ -7,7 +7,7 @@
 在任何 AI 应用或 agent 里使用你的 [Stock Compass](https://stock-compass.app) 记录，支持港股、美股和 A 股。你可以：
 
 - 问它你的自选股、持仓、信号、交易和交易日志；
-- 让它帮你记录买卖、改止损和目标、设价格提醒；
+- 让它帮你记录、更正或删除买卖，改止损和目标，设价格提醒；
 - 请它帮你写策略、解读回测。
 
 **只记账。** 记录一笔交易，就是把它写进你在 Stock Compass 的交易日志，不会去券商下单。连接需要 Stock Compass **Pro** 账号。
@@ -26,7 +26,7 @@ AI 会读取[接入指南](https://stock-compass.app/ai/setup.md)，一步步带
 
 | | 作用 | 适用于 |
 | --- | --- | --- |
-| **MCP 连接器** `https://stock-compass.app/api/mcp` | 给 AI 9 个操作你自己记录的工具（4 个读取，5 个修改） | 任何支持远程 MCP 的应用：Claude、ChatGPT、Claude Code、Cursor 等 |
+| **MCP 连接器** `https://stock-compass.app/api/mcp` | 给 AI 11 个操作你自己记录的工具（4 个读取，7 个修改） | 任何支持远程 MCP 的应用：Claude、ChatGPT、Claude Code、Cursor 等 |
 | **Skill** `skills/stock-compass/` | 让 AI 了解 Stock Compass 的全部功能和使用规则：信号、策略和全部指标、回测、交易、手续费、交易日志、执行纪律、仓位、提醒、邮件、套餐、API 密钥和 REST 接口 | 支持 Agent Skills（`SKILL.md`）的应用。其它应用可以把这些文件当普通文档读。 |
 | **Claude 插件** `.claude-plugin/` | 一步装好连接器和 skill | Claude（网页版、桌面版、Cowork）和 Claude Code |
 
@@ -52,7 +52,7 @@ Skill 由 `SKILL.md` 和三份参考文件组成。AI 只在问题需要时才�
 每个应用都会把你带到 stock-compass.app 登录并确认授权：
 
 - **只读**（默认）：自选股、持仓、交易、信号和价格提醒。
-- **读取和修改**：另外还能加入或移出自选股、记录买卖、改止损和目标、设价格提醒。
+- **读取和修改**：另外还能加入或移出自选股，记录、更正或删除买卖，改止损和目标，设价格提醒。
 
 随时可以在 stock-compass.app 的 **设置 → AI 应用与 API** 里断开连接或吊销 API 密钥。
 

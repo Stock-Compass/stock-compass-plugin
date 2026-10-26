@@ -4,7 +4,7 @@
 
 # Stock Compass for AI apps
 
-Use your [Stock Compass](https://stock-compass.app) records from any AI app or agent. You can ask about your watchlist, holdings, signals, trades and journal; have it record a trade, change a stop or target, or set a price alert; or get help writing and backtesting a strategy. It covers Hong Kong, US and China A-shares.
+Use your [Stock Compass](https://stock-compass.app) records from any AI app or agent. You can ask about your watchlist, holdings, signals, trades and journal; have it record, correct or delete a trade, change a stop or target, or set a price alert; or get help writing and backtesting a strategy. It covers Hong Kong, US and China A-shares.
 
 **It only keeps records.** Recording a trade writes it into your Stock Compass journal. It never places an order with a broker. Connecting needs a Stock Compass **Pro** account.
 
@@ -22,7 +22,7 @@ The AI reads the [setup guide](https://stock-compass.app/ai/setup.md) and walks 
 
 | | What it does | Works with |
 | --- | --- | --- |
-| **MCP connector** at `https://stock-compass.app/api/mcp` | Gives an AI 9 tools on your own records: 4 that read and 5 that write | Any app that supports remote MCP servers: Claude, ChatGPT, Claude Code, Cursor and others |
+| **MCP connector** at `https://stock-compass.app/api/mcp` | Gives an AI 11 tools on your own records: 4 that read and 7 that write | Any app that supports remote MCP servers: Claude, ChatGPT, Claude Code, Cursor and others |
 | **Skill**, `skills/stock-compass/` | Teaches an AI how all of Stock Compass works and the rules for using it. It covers signals, strategies and every indicator, backtests, trades, fees, the journal, execution discipline, sizing, alerts, emails, plans, API keys and the REST API. | Apps that load Agent Skills (`SKILL.md`). For other apps, the files can be read as plain documentation. |
 | **Claude plugin**, `.claude-plugin/` | Installs the connector and the skill in one step | Claude (web, desktop app, Cowork) and Claude Code |
 
@@ -46,7 +46,7 @@ The skill is three reference files plus `SKILL.md`. An AI reads a file only when
 Each app sends you to stock-compass.app to sign in and approve it:
 
 - **Read only** (the default): your watchlist, holdings, trades, signals and price alerts.
-- **Read and make changes**: also add or remove watchlist stocks, record trades, change stops and targets, and set price alerts.
+- **Read and make changes**: also add or remove watchlist stocks, record, correct or delete trades, change stops and targets, and set price alerts.
 
 You can disconnect, or revoke an API key, at any time under **Settings → AI apps & API** on stock-compass.app.
 

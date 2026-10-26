@@ -37,6 +37,8 @@ Connecting needs Stock Compass Pro. If the tools are not available, explain how 
 | `add_to_watchlist` | Writes: adds a stock |
 | `remove_from_watchlist` | Writes: removes a stock, with its price alerts |
 | `record_trade` | Writes: records a buy or sell the user made |
+| `edit_trade` | Writes: corrects a recorded trade's price, quantity or date |
+| `delete_trade` | Writes: deletes a trade recorded by mistake |
 | `set_stop_target` | Writes: changes the stop and/or target of an open position |
 | `create_price_alert` | Writes: adds a price alert |
 
@@ -74,6 +76,7 @@ Writes change the user's records in Stock Compass. They never place an order wit
 1. Record only what the user says they did or asks for. Never infer a trade from a signal, a chart or an earlier message.
 2. Before any write, state the exact change and wait for the user to agree:
    - for a trade: market, ticker, buy or sell, price, quantity and date;
+   - for a correction or a deletion: the trade as recorded (from `get_trades`) and what will change;
    - for a stop, target or alert: the new values.
    One confirmation can cover a whole list the user gave you, if you show the whole list first.
 3. After the call, report what the result says, such as the fees charged and the shares before and after, not what you expected.
@@ -84,7 +87,7 @@ Writes change the user's records in Stock Compass. They never place an order wit
 - `price` is the price per share, without fees. Stock Compass computes the fees from the user's own trading-cost settings and returns them.
 - `quantity` is whole shares.
 - `traded_at` is the trade date in that market (`YYYY-MM-DD`). It defaults to today there and cannot be in the future. Pass the user's date if they traded earlier. Trades on the same date count in the order they are recorded, so record a day's trades in the order they happened.
-- A trade sent twice is recorded twice. If a call fails without an answer, check `get_trades` before sending it again.
+- Pass `external_id` when the trade has an id of its own, such as the broker's order number. The same id sent again records nothing and returns the trade already recorded, so a call that failed without an answer can be sent again as it was. Without it, a trade sent twice is recorded twice: check `get_trades` first.
 - **Buy**:
   - Leave `trigger` out unless the user says why they bought. Without it, Stock Compass files the buy as on a signal if the stock had a buy signal in the last 14 days (for a stock already held, an add or buy signal), otherwise as manual.
   - Pass `manual` when the user says the buy did not follow a signal, and `signal` only when they say it did. Pass `other` for a buy that was neither, such as a rebalance; it counts on neither side of the journal's rules-vs-gut comparison.
@@ -96,6 +99,9 @@ Writes change the user's records in Stock Compass. They never place an order wit
 
 ### The other writes
 
+- `edit_trade` corrects the price, quantity or date of a recorded trade (`id` from `get_trades`). Prefer it to deleting and recording again: the journal entry keeps its trigger, stop and thesis. Cash moves by the difference and the fees are worked out again. The side and the ticker cannot change; for those, delete the trade and record the right one.
+- `delete_trade` deletes a trade recorded by mistake. The cash it moved goes back and the holding is recomputed. A buy's journal entry goes with it; a deleted sale does not reopen the entries it closed. A buy whose shares a later sale used is refused: change the sale first.
+- When either answers with `journal_review`, pass its message on: some journal entry was left as it was for the user to check.
 - `set_stop_target` changes the open position's current stop and/or target. Only the value you pass changes, and `null` clears it. The planned levels from entry are kept as they were, and each stop change is added to the position's `stop_history`.
 - `remove_from_watchlist` is refused while the stock is held. It deletes the stock's price alerts, so say so when you confirm; trades, the journal and signals are kept.
 - `create_price_alert` takes `direction` (`above` or `below`), `threshold` and an optional `note`. It is checked at each scan and fires once.
