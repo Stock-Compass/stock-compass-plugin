@@ -279,7 +279,14 @@ Answers 200:
   "fees": 3.86, "fees_source": "provided", "cash": 12345.6, "shares_after": 200, "journal_updated": 1, "journal_review": null }
 ```
 
-Nothing to change gives `{ "trade": {…}, "unchanged": true }`. When the journal needs a look, `journal_review` is `{ "kind": "buy_entry" | "sell_close", "date": "2026-10-23", "message": "…" }`; pass the message on.
+Nothing to change gives `{ "trade": {…}, "unchanged": true }`.
+
+**`journal_review`** is null, or says which journal entries were left as they were for the user to check: `{ "kind": …, "date": "2026-10-23", "message": "…" }`.
+- `kind` is a stable code; `message` is in English. Translate from `kind` for a user in another language.
+  - `buy_entry`: the buy's journal entry is closed, or no longer matches the trade (it was edited, or part or all of it sold), so it was not changed.
+  - `sell_close`: the journal entries this sale closed were not changed.
+- `date` is the trade's date, where to look on the Journal page.
+- A correction of `fees` alone never gives one: the journal keeps no fees, so nothing in it has to follow.
 
 ### DELETE /trades/{id}
 
