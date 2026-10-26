@@ -230,7 +230,7 @@ A log of dividends received, per market, with totals per currency. On a phone it
 - A buy subtracts price × quantity + fees; a sell adds price × quantity − fees.
 - If cash is left empty for a market, trades do not start tracking it.
 
-**Fees** are kept per market, in Settings → Trading Cost (设置 → 交易成本). When a trade is recorded, the fee comes from the settings in force at that moment.
+**Fees** are kept per market, in Settings → Trading Cost (设置 → 交易成本). When a trade is recorded on the website, the fee comes from the settings in force at that moment. A trade recorded through the API can carry what the broker actually charged; that fee is kept and used instead ([api.md](api.md#cost-fees-and-pl)).
 
 | Market | Presets | Default (moomoo) |
 | --- | --- | --- |
@@ -243,7 +243,7 @@ Every field can be edited.
 **Average cost and P&L**:
 - The holding's cost is the weighted average of its buys, and a sale does not change it.
 - After a sale to zero, the next buy starts a new average.
-- P&L is net of fees everywhere, the position-risk panel included: cost includes buy fees, and value subtracts estimated sell fees.
+- P&L is net of fees everywhere, the position-risk panel included: cost includes buy fees, and value subtracts estimated sell fees. Buy fees are estimated from the current settings, except those reported through the API, which count as they were.
 
 **Lots** are kept first in, first out: each buy is a lot, and sales use the oldest lots first.
 - On Pro, the close form can choose which lots to report as closed. That changes only the journal's per-lot breakdown; the lot records still close oldest first.

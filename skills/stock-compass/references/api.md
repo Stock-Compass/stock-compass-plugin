@@ -102,9 +102,11 @@ In a path (`DELETE /watchlist/{ticker}`, `PATCH /positions/{ticker}`) the market
 
 ### Cost, fees and P&L
 
-- **Fees** are worked out from the user's trading-cost settings for the market when a trade is recorded. They move cash, and `POST /trades` returns them. The trade itself stores no fee.
-- **A holding's `cost_price`** is the weighted average of its buy prices, without fees. A sale does not change it; after a sale to zero, the next buy starts a new average. P&L on the website adds estimated buy and sell fees from the current settings.
+- **Fees**: send `fees` with what the broker charged for a trade, and it is kept on the trade (`fees_source: "provided"`). Without it, the fee is worked out from the user's trading-cost settings for the market (`"estimated"`); an estimated fee is not kept. Either way it moves cash, and `POST /trades` returns it. Trades recorded on the website are always estimated.
+- **A holding's `cost_price`** is the weighted average of its buy prices, without fees. A sale does not change it; after a sale to zero, the next buy starts a new average.
+- **P&L on the website** is net of fees. A holding's buy fees are the reported ones still in it (a sale takes its share, as it does of the cost), and for the shares without, an estimate from the current settings. The sell fee of a holding is always an estimate. A holding with no reported fees is priced exactly as before.
 - **The journal** keeps each buy as its own entry, at its own price. A partial sale closes the oldest open entries first (FIFO), so the return of each closed entry uses that entry's price. A broker that reports realized P&L on average cost can show a different figure for a partial sale.
+- **The journal's net figures** (the cumulative return and the realized P&L curve) use an entry's reported buy and sale fees, in proportion to its shares, when its trades can be told apart: the buy it was logged for, or the one buy on its date at its price; the one sale on its close date at its price. Otherwise they estimate, as before. The win rate and the rules-vs-gut comparison use price returns without fees.
 
 ```bash
 curl -s https://stock-compass.app/api/v1/me -H "Authorization: Bearer $STOCK_COMPASS_KEY"
@@ -194,13 +196,13 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 
 Query: `market`, `ticker`, `from`, `to`, `external_id` (all optional); `limit` (1–500, default 100); `offset` (default 0).
 
-Results are newest first. `external_id` is null for a trade recorded without one, such as on the website.
+Results are newest first. `external_id` is null for a trade recorded without one, such as on the website. `fees` is the fee the client reported, with `fees_source: "provided"`; it is null with `"estimated"` when none was, and the website then estimates it from the user's current settings.
 
 ```json
 { "trades": [
     { "id": "…", "ticker": "0700.HK", "market": "hk", "type": "buy", "price": 382.4,
       "quantity": 200, "traded_at": "2026-10-23", "recorded_at": "2026-10-23T03:00:00Z",
-      "external_id": "FUTU-8231" }
+      "external_id": "FUTU-8231", "fees": 3.86, "fees_source": "provided" }
   ], "limit": 100, "offset": 0 }
 ```
 
@@ -222,8 +224,9 @@ Records a buy or sell the user made, exactly as the trade form on the website do
 | `lesson` | sell only | Up to 1000 characters. |
 | `add_to_watchlist` | no | `true`: for a buy of a stock not on the watchlist, add it first, as `POST /watchlist` does. Default `false`. |
 | `external_id` | no | The client's own id for the trade, such as the broker's order number: 1 to 100 characters. See below. |
+| `fees` | no | What the broker charged for this trade, zero or more, in its currency. Without it, estimated from the user's settings. |
 
-- **Fees** are worked out from the user's own trading-cost settings for that market, and the response returns them. See [Cost, fees and P&L](#cost-fees-and-pl).
+- **Fees**: `fees` is what the broker charged, zero or more, in the trade's currency; it moves cash and is kept. Without it, the fee is worked out from the user's own trading-cost settings for that market. The response returns the fee and `fees_source`. See [Cost, fees and P&L](#cost-fees-and-pl).
 - **`trigger`** says why the user bought. The journal's **By rules** (按规则操作) vs **By gut feel** (凭直觉操作) comparison is built on it.
   - `signal`: on a strategy signal. Counts as by rules.
   - `manual`: the user's own decision. Counts as by gut feel.
@@ -249,7 +252,7 @@ Answers 201:
 
 ```json
 { "trade_id": "…", "ticker": "0700.HK", "market": "hk", "type": "buy", "price": 382.4, "quantity": 200,
-  "traded_at": "2026-10-23", "external_id": "FUTU-8231", "fees": 64.4, "shares_before": 0, "shares_after": 200, "cash": 12345.6,
+  "traded_at": "2026-10-23", "external_id": "FUTU-8231", "fees": 64.4, "fees_source": "provided", "shares_before": 0, "shares_after": 200, "cash": 12345.6,
   "journal_entry_id": 42, "trigger": { "type": "signal", "signal_id": 123, "signal_date": "2026-10-22" } }
 ```
 
@@ -257,9 +260,10 @@ For a sale, `journal_closed_shares` takes the place of `journal_entry_id` and `t
 
 ### PATCH /trades/{id}
 
-Corrects a recorded trade, as the trade list on the website does. Body: any of `price`, `quantity` and `traded_at`; what is left out stays as it was.
+Corrects a recorded trade, as the trade list on the website does. Body: any of `price`, `quantity`, `traded_at` and `fees`; what is left out stays as it was.
 
-- **Cash** moves by the difference. **Fees** are worked out again from the user's current trading-cost settings.
+- **Cash** moves by the difference.
+- **Fees**: with `fees`, that is what the broker charged, and it is kept; `fees` alone is a correction too. Without it, a fee reported before is kept while the price and quantity stay the same (a date correction); otherwise the fee is worked out again from the user's current settings. A price or quantity correction on the website also goes back to the estimate.
 - **The holding** is recomputed from all the trades.
 - **The journal**: a buy's entry takes the new shares, and the new price and date where the entry still had the trade's old ones; a sale with the same quantity updates the entries it closed, with their returns. An entry that no longer matched the trade is left as it was, and `journal_review` says so.
 - **The side and the ticker** cannot change (400): that is another trade. Delete it and record the right one.
@@ -270,8 +274,9 @@ Answers 200:
 
 ```json
 { "trade": { "id": "…", "ticker": "0700.HK", "market": "hk", "type": "buy", "price": 381, "quantity": 200,
-             "traded_at": "2026-10-23", "recorded_at": "…", "external_id": "FUTU-8231" },
-  "fees": 64.53, "cash": 12345.6, "shares_after": 200, "journal_updated": 1, "journal_review": null }
+             "traded_at": "2026-10-23", "recorded_at": "…", "external_id": "FUTU-8231",
+             "fees": 3.86, "fees_source": "provided" },
+  "fees": 3.86, "fees_source": "provided", "cash": 12345.6, "shares_after": 200, "journal_updated": 1, "journal_review": null }
 ```
 
 Nothing to change gives `{ "trade": {…}, "unchanged": true }`. When the journal needs a look, `journal_review` is `{ "kind": "buy_entry" | "sell_close", "date": "2026-10-23", "message": "…" }`; pass the message on.

@@ -84,7 +84,7 @@ Writes change the user's records in Stock Compass. They never place an order wit
 ### record_trade
 
 - The stock must be on the watchlist. If the call says it is not, offer to add it, and ask first: then send the trade again with `add_to_watchlist: true`, which adds it and records the buy in one call.
-- `price` is the price per share, without fees. Stock Compass computes the fees from the user's own trading-cost settings and returns them.
+- `price` is the price per share, without fees. When the user knows what the broker charged (from a statement or a fill), pass it as `fees`: it is kept and used in their P&L. Otherwise Stock Compass estimates the fees from the user's own trading-cost settings. The result says which (`fees_source`).
 - `quantity` is whole shares.
 - `traded_at` is the trade date in that market (`YYYY-MM-DD`). It defaults to today there and cannot be in the future. Pass the user's date if they traded earlier. Trades on the same date count in the order they are recorded, so record a day's trades in the order they happened.
 - Pass `external_id` when the trade has an id of its own, such as the broker's order number. The same id sent again records nothing and returns the trade already recorded, so a call that failed without an answer can be sent again as it was. Without it, a trade sent twice is recorded twice: check `get_trades` first.
@@ -99,7 +99,7 @@ Writes change the user's records in Stock Compass. They never place an order wit
 
 ### The other writes
 
-- `edit_trade` corrects the price, quantity or date of a recorded trade (`id` from `get_trades`). Prefer it to deleting and recording again: the journal entry keeps its trigger, stop and thesis. Cash moves by the difference and the fees are worked out again. The side and the ticker cannot change; for those, delete the trade and record the right one.
+- `edit_trade` corrects the price, quantity or date of a recorded trade (`id` from `get_trades`). Prefer it to deleting and recording again: the journal entry keeps its trigger, stop and thesis. Cash moves by the difference. Pass `fees` to correct what the broker charged, alone or with the rest; without it, a reported fee stays while price and quantity do, and is otherwise estimated again. The side and the ticker cannot change; for those, delete the trade and record the right one.
 - `delete_trade` deletes a trade recorded by mistake. The cash it moved goes back and the holding is recomputed. A buy's journal entry goes with it; a deleted sale does not reopen the entries it closed. A buy whose shares a later sale used is refused: change the sale first.
 - When either answers with `journal_review`, pass its message on: some journal entry was left as it was for the user to check.
 - `set_stop_target` changes the open position's current stop and/or target. Only the value you pass changes, and `null` clears it. The planned levels from entry are kept as they were, and each stop change is added to the position's `stop_history`.
