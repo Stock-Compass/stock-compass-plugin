@@ -1,0 +1,35 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Stock-Compass/stock-compass",
+  "title": "Stock Compass",
+  "description": "Watchlist, signals, trades and journal for HK, US and China A-share stocks. Records only; no orders.",
+  "version": "1.0.0",
+  "websiteUrl": "https://stock-compass.app/en/ai",
+  "repository": {
+    "url": "https://github.com/Stock-Compass/stock-compass-plugin",
+    "source": "github",
+    "id": "1432915263"
+  },
+  "icons": [
+    {
+      "src": "https://stock-compass.app/brand/icon-512.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "512x512"
+      ]
+    },
+    {
+      "src": "https://stock-compass.app/brand/logo-icon.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": [
+        "any"
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://stock-compass.app/api/mcp"
+    }
+  ]
+}
