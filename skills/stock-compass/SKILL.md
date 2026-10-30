@@ -79,7 +79,8 @@ Writes change the user's records in Stock Compass. They never place an order wit
    - for a correction or a deletion: the trade as recorded (from `get_trades`) and what will change;
    - for a stop, target or alert: the new values.
    One confirmation can cover a whole list the user gave you, if you show the whole list first.
-3. After the call, report what the result says, such as the fees charged and the shares before and after, not what you expected.
+3. Over MCP, each write tool takes two calls. Called without `confirmation`, it changes nothing and returns the change as it would be made and a `confirmation` code. Show that change, and once the user agrees, call again with the same arguments and the code. If the user wants anything different, or the code has expired, call again without one. For a list, get every change's code first, show the whole list, then send them. Over the REST API there is no code: the user's agreement in the conversation is the only check.
+4. After the call, report what the result says, such as the fees charged and the shares before and after, not what you expected.
 
 ### record_trade
 

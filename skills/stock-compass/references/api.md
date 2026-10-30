@@ -74,6 +74,8 @@ The MCP tools map one to one onto the REST endpoints below:
 
 Tool arguments use the same names as the REST fields. In MCP, `types` for `get_signals` is a list. Tool errors come back as a result marked as an error, with the message described under "Errors" below.
 
+**Writes over MCP take two calls.** Called without `confirmation`, a write tool changes nothing. It answers with `status: "confirmation_needed"`, the `change` as it would be made (for `record_trade`, with the date it defaults to), for `edit_trade` and `delete_trade` the `trade` it changes, and a `confirmation` code. Once the user agrees, call again with the same arguments and that code, and the change is made. A code fits only that change on that connection, and lasts 10 to 20 minutes. Sent with any other change, or late, it changes nothing and comes back with a new code. `record_trade` also returns a `note` that no order is placed. The REST API takes no code.
+
 ## REST API
 
 Base URL: `https://stock-compass.app/api/v1`. It accepts **API keys only**; OAuth tokens work only with `/api/mcp`.
@@ -196,13 +198,13 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 
 Query: `market`, `ticker`, `from`, `to`, `external_id` (all optional); `limit` (1–500, default 100); `offset` (default 0).
 
-Results are newest first. `external_id` is null for a trade recorded without one, such as on the website. `fees` is the fee the client reported, with `fees_source: "provided"`; it is null with `"estimated"` when none was, and the website then estimates it from the user's current settings.
+Results are newest first. `external_id` is null for a trade recorded without one, such as on the website. `fees` is the fee the client reported, with `fees_source: "provided"`; it is null with `"estimated"` when none was. `estimated_fees` is then the estimate from the user's current trading-cost settings, as the website's P&L counts it; it is null when a fee was reported.
 
 ```json
 { "trades": [
     { "id": "…", "ticker": "0700.HK", "market": "hk", "type": "buy", "price": 382.4,
       "quantity": 200, "traded_at": "2026-10-23", "recorded_at": "2026-10-23T03:00:00Z",
-      "external_id": "FUTU-8231", "fees": 3.86, "fees_source": "provided" }
+      "external_id": "FUTU-8231", "fees": 3.86, "fees_source": "provided", "estimated_fees": null }
   ], "limit": 100, "offset": 0 }
 ```
 
