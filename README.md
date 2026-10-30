@@ -40,7 +40,7 @@ The skill is three reference files plus `SKILL.md`. An AI reads a file only when
 | **Claude** (web, desktop app, Cowork) | Customize → Plugins → Add → Add marketplace → `Stock-Compass/stock-compass-plugin`. Install **Stock Compass**, then connect it on the plugin's **Connectors** tab. |
 | **Claude Code** | `claude plugin install stock-compass --marketplace Stock-Compass/stock-compass-plugin`, then `/mcp` to sign in. |
 | **ChatGPT** | [chatgpt.com/plugins](https://chatgpt.com/plugins) → + → Add custom MCP server. Paste `https://stock-compass.app/api/mcp` and choose OAuth. |
-| **Any other MCP client** | Add `https://stock-compass.app/api/mcp` as a remote MCP server (Streamable HTTP) with OAuth, or with the header `Authorization: Bearer sc_…` and an API key. |
+| **Any other MCP client** | Add `https://stock-compass.app/api/mcp` as a remote MCP server (Streamable HTTP) with OAuth, or with the header `Authorization: Bearer sc_…` and an API key. It is also in the official [MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Stock-Compass/stock-compass) as `io.github.Stock-Compass/stock-compass`. |
 | **Scripts, or tools without MCP** | Use the REST API at `https://stock-compass.app/api/v1` with an API key. See [api.md](skills/stock-compass/references/api.md). |
 
 Each app sends you to stock-compass.app to sign in and approve it:
