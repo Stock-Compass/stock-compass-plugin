@@ -136,11 +136,11 @@ In a path (`DELETE /watchlist/{ticker}`, `PATCH /positions/{ticker}`) the market
 
 ### Cost, fees and P&L
 
-- **Fees**: send `fees` with what the broker charged for a trade, and it is kept on the trade (`fees_source: "provided"`). Without it, the fee is worked out from the user's trading-cost settings for the market (`"estimated"`); an estimated fee is not kept. Either way it moves cash, and `POST /trades` returns it. Trades recorded on the website are always estimated.
+- **Fees**: send `fees` with what the broker charged for a trade, and it is kept on the trade (`fees_source: "provided"`). Without it, the fee is worked out from the user's trading-cost settings for the market (`"estimated"`) and kept on the trade as it was then: a later change to the settings does not change it. Either way it moves cash, and `POST /trades` returns it. Trades recorded on the website are estimated the same way.
 - **A holding's `cost_price`** is the weighted average of its buy prices, without fees. A sale does not change it; after a sale to zero, the next buy starts a new average.
-- **P&L on the website** is net of fees. A holding's buy fees are the reported ones still in it (a sale takes its share, as it does of the cost), and for the shares without, an estimate from the current settings. The sell fee of a holding is always an estimate. A holding with no reported fees is priced exactly as before.
+- **P&L on the website** is net of fees. A holding's buy fees are the fees kept on its buys, reported or estimated when recorded, still in it (a sale takes its share, as it does of the cost); only shares from trades with no fee kept are estimated from the current settings. The sell fee of a holding is always an estimate.
 - **The journal** keeps each buy as its own entry, at its own price. A partial sale closes the oldest open entries first (FIFO), so the return of each closed entry uses that entry's price. A broker that reports realized P&L on average cost can show a different figure for a partial sale.
-- **The journal's net figures** (the cumulative return and the realized P&L curve) use an entry's reported buy and sale fees, in proportion to its shares, when its trades can be told apart: the buy it was logged for, or the one buy on its date at its price; the one sale on its close date at its price. Otherwise they estimate, as before. The win rate and the rules-vs-gut comparison use price returns without fees.
+- **The journal's net figures** (the cumulative return and the realized P&L curve) use the fees kept on an entry's buy and sale, in proportion to its shares, when its trades can be told apart: the buy it was logged for, or the one buy on its date at its price; the one sale on its close date at its price. One buy sold in three parts is charged that one order's fee across the three entries. Otherwise they estimate from the current settings. The win rate and the rules-vs-gut comparison use price returns without fees.
 
 ```bash
 curl -s https://stock-compass.app/api/v1/me -H "Authorization: Bearer $STOCK_COMPASS_KEY"
@@ -231,7 +231,7 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 
 Query: `market`, `ticker`, `from`, `to`, `external_id` (all optional); `limit` (1–500, default 100); `offset` (default 0). A `ticker` without `market` finds its market from the code: `700` is 0700.HK, `600519` is 600519.SS, `BRK.B` is BRK-B.
 
-Results are newest first. `external_id` is null for a trade recorded without one, such as on the website. `fees` is the fee the client reported, with `fees_source: "provided"`; it is null with `"estimated"` when none was. `estimated_fees` is then the estimate from the user's current trading-cost settings, as the website's P&L counts it; it is null when a fee was reported.
+Results are newest first. `external_id` is null for a trade recorded without one, such as on the website. `fees` is the fee the client reported, with `fees_source: "provided"`; it is null with `"estimated"` when none was. `estimated_fees` is then the estimate from the user's trading-cost settings that the trade was recorded with, as the website's P&L counts it (for an old trade with none kept, from the current settings); it is null when a fee was reported.
 
 ```json
 { "trades": [
@@ -274,7 +274,7 @@ Records a buy or sell the user made, exactly as the trade form on the website do
   - `manual_stop`: **Manual stop-loss** (主动止损), sold at the user's own stop;
   - `manual_target`: **Manual take-profit** (主动止盈), sold at the user's own target;
   - `other`: **Other** (其他).
-- **Selling to zero** closes the journal entries with `close_reason`, or with `other`. A partial sale closes the oldest open journal entries first (FIFO), with reason `other` and no lesson: `close_reason` and `lesson` are not kept, and the answer lists them under `ignored`, with a `journal_note` saying so.
+- **Selling** closes the oldest open journal entries first (FIFO) with `close_reason`, or with `other`, and puts `lesson` on them; selling to zero closes them all. If the answer lists `close_reason` and `lesson` under `ignored`, with a `journal_note`, they were not kept.
 - **Selling more** than was held on `traded_at` gives 409 `oversell`. A sale of a stock not on the watchlist gives 409 `not_on_watchlist`, or with `add_to_watchlist: true`, 409 `oversell`: nothing is held.
 - **With `add_to_watchlist`**, the stock is added only once the rest of the request is valid. The answer then has `"added_to_watchlist": true`; a stock the quote source does not know gives 404 `unknown_ticker`, and a full watchlist 403 `limit`.
 - **`external_id`** guards against recording a trade twice. It is unique per user and market.
@@ -292,7 +292,7 @@ Answers 201:
   "journal_entry_id": 42, "trigger": { "type": "signal", "signal_id": 123, "signal_date": "2026-10-22" } }
 ```
 
-For a sale, `journal_closed_shares` takes the place of `journal_entry_id` and `trigger`, and a sale that leaves shares held may add `ignored` and `journal_note`. `external_id` is there only when one was sent.
+For a sale, `journal_closed_shares` takes the place of `journal_entry_id` and `trigger`; `ignored` and `journal_note` appear only when `close_reason` and `lesson` were not kept. `external_id` is there only when one was sent.
 
 ### PATCH /trades/{id}
 

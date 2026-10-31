@@ -96,7 +96,7 @@ Writes change the user's records in Stock Compass. They never place an order wit
   - `stop`, `target` and `thesis` are optional. Pass them when the user gives them; a stop set at entry is part of what the journal's execution record measures.
 - **Sell**:
   - `close_reason` is one of `rule_exit` (the strategy's exit rule fired), `rule_trim` (its trim rule fired), `manual_stop` (the user's own stop), `manual_target` (the user's own target) or `other`. `lesson` is optional.
-  - A sale that brings the holding to zero closes the journal entries with that reason, or `other`. A sale that leaves shares held closes entries with `other` and no lesson; the result then lists `close_reason` and `lesson` under `ignored`, and says so in `journal_note`.
+  - A sale closes the journal's oldest open entries first, with that reason (or `other`) and the lesson; a sale to zero closes them all. If the result lists `close_reason` and `lesson` under `ignored`, with a `journal_note`, they were not kept: say so.
   - Selling more shares than were held on that date is refused; the earlier buy has to be recorded first.
 
 ### The other writes

@@ -53,7 +53,7 @@ These are the defaults; the administrator can change them, and the pricing page 
 | Custom strategies | 3 per market | unlimited |
 | Saved watchlist filters | 2 per market | unlimited |
 | Backtesting | no | yes, up to 500 tickers per run |
-| Signal, price-alert and planned-stop emails | no (alerts still fire in the app) | yes |
+| Price-alert and stop emails (on by default), signal emails | no (alerts still fire in the app) | yes |
 | Weekly review email | yes | yes |
 | AI apps and API keys | no | yes |
 | Choosing which lots a close draws from (journal breakdown only) | no, always oldest first | yes |
@@ -201,7 +201,7 @@ A log of dividends received, per market, with totals per currency. On a phone it
 | General (通用) | Language, default market, card detail level, theme, up/down colours (red-up or green-up) |
 | Trading Cost (交易成本) | Fee schedule per market (see below) |
 | Position Sizing (仓位风控) | Risk per trade, single-position limit, HK lot size |
-| Notifications (邮件通知) | Signal emails (Pro) and the weekly review |
+| Notifications (邮件通知) | Price and stop alert emails and signal emails (Pro), the weekly review, account emails |
 | Price Alerts (价格提醒) | The user's alerts, per market |
 | AI apps & API (AI 应用与 API) | MCP address, connected apps, API keys (Pro) |
 | Data & Privacy (数据与隐私) | Export, account deletion |
@@ -230,7 +230,7 @@ A log of dividends received, per market, with totals per currency. On a phone it
 - A buy subtracts price × quantity + fees; a sell adds price × quantity − fees.
 - If cash is left empty for a market, trades do not start tracking it.
 
-**Fees** are kept per market, in Settings → Trading Cost (设置 → 交易成本). When a trade is recorded on the website, the fee comes from the settings in force at that moment. A trade recorded through the API can carry what the broker actually charged; that fee is kept and used instead ([api.md](api.md#cost-fees-and-pl)).
+**Fees** are kept per market, in Settings → Trading Cost (设置 → 交易成本). When a trade is recorded on the website, the fee comes from the settings in force at that moment and is kept on the trade: changing the settings later applies to trades recorded from then on. A trade recorded through the API can carry what the broker actually charged; that fee is kept and used instead ([api.md](api.md#cost-fees-and-pl)).
 
 | Market | Presets | Default (moomoo) |
 | --- | --- | --- |
@@ -243,7 +243,7 @@ Every field can be edited.
 **Average cost and P&L**:
 - The holding's cost is the weighted average of its buys, and a sale does not change it.
 - After a sale to zero, the next buy starts a new average.
-- P&L is net of fees everywhere, the position-risk panel included: cost includes buy fees, and value subtracts estimated sell fees. Buy fees are estimated from the current settings, except those reported through the API, which count as they were.
+- P&L is net of fees everywhere, the position-risk panel included: cost includes buy fees, and value subtracts estimated sell fees. Buy fees are the ones kept on the trades, as they were recorded or reported; only trades with none kept are estimated from the current settings.
 
 **Lots** are kept first in, first out: each buy is a lot, and sales use the oldest lots first.
 - On Pro, the close form can choose which lots to report as closed. That changes only the journal's per-lot breakdown; the lot records still close oldest first.
@@ -272,7 +272,7 @@ Every buy creates a journal entry, **Log open position** (记录开仓) or **Log
 - **Reason**: Exit rule fired (触发清仓规则), Trim rule fired (触发减仓规则), Manual stop-loss (主动止损), Manual take-profit (主动止盈) or Other (其他).
 - **Deviated from plan?** (是否偏离原计划) This is pre-set to yes when the price closed below the stop more than 2 trading days before the sale, and a yes needs a reason.
 - **Lesson learned** (本次学到什么) is optional.
-- A partial sale closes the oldest open entries first, with reason other.
+- A partial sale on the website closes the oldest open entries first, with reason other. Through the API, it takes the close_reason and lesson sent.
 
 **The journal page**:
 - Ranges: 30, 90 or 180 days, or all (the default). **Export CSV** (导出 CSV) is on every plan.
@@ -349,23 +349,24 @@ The stop distance is the active strategy's smallest `floating_loss_pct` exit thr
   - It is checked at every scan: four times a day for HK and A-shares, three for the US.
   - It fires when the price is at or through the level, or when a later day's high or low crossed it.
   - It fires once, and **🔄 Re-arm** (🔄 重新启用) re-arms it.
-- **Email**: fired alerts reach Pro users by email (when signal email is on), and everyone in the app.
+- **Email**: fired alerts reach Pro users in an email of their own (on by default), and everyone in the app.
 
 ## Emails
 
+- **Price and stop alert emails (Pro)**: on by default. Fired price alerts, planned stops and planned targets go out after the next scan, stops first; with one alert, the subject names the stock and the level ("止损提醒 · 0700.HK 跌破 350"). The type and strategy choices below do not apply to them.
 - **Signal emails (Pro)**:
-  - The master switch is off by default.
-  - After each scan, one digest goes to the sign-in email, up to 200 signals (more follow in the next one), sent between 8:00 and 17:00 market time (adjustable).
+  - Off by default.
+  - After each scan, one digest goes to the sign-in email, up to 200 signals (more follow in the next one).
   - The user picks which types (buy/add, sell/exit, trim) and which strategies.
-  - Price alerts are always included.
   - Signals older than 4 days, or from before email was switched on, are never sent.
+- **Active hours**: both go out between 8:00 and 17:00 market time on trading days (adjustable).
 - **Per strategy**: a bell switches email for that strategy, and **Mute email 24h** (邮件静音 24 小时) mutes it for a day. Signals are still computed and logged, and editing the strategy clears the mute.
 - **Weekly review email** (每周复盘邮件), on every plan:
   - On by default, sent Monday 09:00 market time.
   - It covers the week's execution (sell signals acted on, holdings below their stop, opens on a signal and with a stop, chases, buy timing), KPIs, the best and worst trade, signal follow-through, rules vs gut over 90 days, and holdings with no stop.
   - It is skipped in a week with no opens, closes or holdings.
-- **Other emails**: reminders in the first days after sign-up if nothing has been recorded, and the trial-ending notice.
-- **Unsubscribing**: the link in an email turns off both the signal email and the weekly review.
+- **Account emails**: reminders in the first days after sign-up if nothing has been recorded, and the trial-ending notice. They have their own switch.
+- **Unsubscribing**: the link in an email, and a mail client's unsubscribe button, stop that kind of email only; the unsubscribe page also offers everything. Each switch can be turned back on in Settings → Notifications.
 
 ## Fundamentals and the data summary
 
