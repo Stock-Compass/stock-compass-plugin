@@ -141,7 +141,7 @@ The dashboard.
 ### Watchlist (股票池)
 
 - **Views**:
-  - tabs: All (全部), Holding (持仓) and Watching (观察); Holding is the default;
+  - tabs: All (全部), Holding (持仓) and Watching (观察); it opens on Holding when something is held, and on All when nothing is;
   - search, cards or a compact table, and a Simple or Pro detail level;
   - sorting: RSI, today's change, biggest loss or gain, plan status, valuation discount and relative strength;
   - filters: signal, "buy conditions still met" for holdings, RSI band and plan status;
@@ -395,7 +395,8 @@ The stop distance is the active strategy's smallest `floating_loss_pct` exit thr
 - `/en/demo`: a read-only demo with sample data.
 - `/en/pricing`: plans and the FAQ.
 - `/en/guides`: 15 guides on stops, sizing, backtesting, journaling and more.
-- `/en/glossary`: metric definitions.
+- `/en/glossary`: metric definitions, with a page of its own for each of the main ones (`/en/glossary/rsi` and so on).
+- `/en/ai`: connecting an AI app, and the line to paste into one. The setup guide an AI follows is https://stock-compass.app/ai/setup.md.
 - `/en/about`: who runs it. Stock Compass is an Australian sole trader; support is support@stock-compass.app.
 
 Every public page has a Chinese twin under `/zh/…`. A summary for AI assistants is at https://stock-compass.app/llms.txt.

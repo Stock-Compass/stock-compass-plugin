@@ -58,10 +58,10 @@ Prices are in the stock's own currency: HKD, USD or CNY.
 
 - `get_watchlist` takes `holding: true` for holdings only. Each holding has `opened_at`, the stop and target set at entry (`entry_stop`, `entry_target`), and `stop_history`, every change of the stop since.
 - `get_signals` covers the last 7 days by default (`days` up to 90). Types default to buy, add, exit and trim; ask for `price_alert` too when the user wants alerts that fired.
-- Buy and add signals are recorded once the daily bar is final, after the close. Exit and trim are recorded during the session. A card the dashboard shows as provisional ("Intraday · confirmed at close") is not in the results yet.
+- Buy and add signals wait for the daily bar to be final: the next trading day's 09:00 scan, in that market's time, records them, so a Friday's appear on Monday. Exit and trim are recorded during the session. A card the dashboard shows as provisional ("Intraday · confirmed at close") is not in the results yet.
 - A rule that stays true is recorded again on every bar, so the same exit can appear day after day. Each signal has `active_since`, the first day of that run, and `occurrences`. Report a run once, with the date it began ("the exit rule on ANF has fired every day since 2026-10-19"), not as five new signals. `state: "new"` returns only the first day of each run.
 - `get_trades` returns 100 trades by default (`limit` up to 500). Use `offset` for more.
-- The connection allows 60 requests a minute. Prefer one `get_watchlist` over a call per stock.
+- The connection allows 60 requests a minute, and every MCP message counts: a write, which takes two calls, costs two. Prefer one `get_watchlist` over a call per stock, and space a long list of writes about a second apart.
 
 ## Rules for every answer
 
@@ -79,7 +79,7 @@ Writes change the user's records in Stock Compass. They never place an order wit
    - for a correction or a deletion: the trade as recorded (from `get_trades`) and what will change;
    - for a stop, target or alert: the new values.
    One confirmation can cover a whole list the user gave you, if you show the whole list first.
-3. Over MCP, each write tool takes two calls. Sent without `preview_id`, it changes nothing and returns a preview of the change with a `preview_id`. Show the preview, and once the user agrees, send the same arguments again with the `preview_id`. If the user wants anything different, or the `preview_id` has expired, send it without one for a new preview. For a list, get every change's preview first, show the whole list, then send them. Over the REST API there is no preview: the user's agreement in the conversation is the only check.
+3. Over MCP, each write tool takes two calls. Sent without `preview_id`, it changes nothing and returns a preview of the change with a `preview_id`. Show the preview, and once the user agrees, send the same arguments again with the `preview_id`. If the user wants anything different, or the `preview_id` has expired, send it without one for a new preview. For a list, get every change's preview first, show the whole list, then send them. The preview does not check that the change can be made (the stock on the watchlist, enough shares to sell); the second call does, so check with `get_watchlist` first. Over the REST API there is no preview: the user's agreement in the conversation is the only check.
 4. After the call, report what the result says, such as the fees charged and the shares before and after, not what you expected.
 
 ### record_trade
@@ -90,12 +90,13 @@ Writes change the user's records in Stock Compass. They never place an order wit
 - `traded_at` is the trade date in that market (`YYYY-MM-DD`). It defaults to today there and cannot be in the future. Pass the user's date if they traded earlier. Trades on the same date count in the order they are recorded, so record a day's trades in the order they happened.
 - Pass `external_id` when the trade has an id of its own, such as the broker's order number. The same id sent again records nothing and returns the trade already recorded, so a call that failed without an answer can be sent again as it was. Without it, a trade sent twice is recorded twice: check `get_trades` first.
 - **Buy**:
-  - Leave `trigger` out unless the user says why they bought. Without it, Stock Compass files the buy as on a signal if the stock had a buy signal in the last 14 days (for a stock already held, an add or buy signal), otherwise as manual.
+  - Leave `trigger` out unless the user says why they bought. Without it, Stock Compass files the buy as on a signal if the strategy in use in that market gave the stock a buy signal in the last 14 days, counted back from today (for a stock already held, an add or buy signal), and otherwise as manual.
+  - For holdings bought before the user connected, pass `other`: left out, an old buy would be filed as manual, or under a recent signal it did not follow, and skew the journal's rules-vs-gut comparison.
   - Pass `manual` when the user says the buy did not follow a signal, and `signal` only when they say it did. Pass `other` for a buy that was neither, such as a rebalance; it counts on neither side of the journal's rules-vs-gut comparison.
   - `stop`, `target` and `thesis` are optional. Pass them when the user gives them; a stop set at entry is part of what the journal's execution record measures.
 - **Sell**:
   - `close_reason` is one of `rule_exit` (the strategy's exit rule fired), `rule_trim` (its trim rule fired), `manual_stop` (the user's own stop), `manual_target` (the user's own target) or `other`. `lesson` is optional.
-  - A sale that brings the holding to zero closes the journal entries with that reason, or `other`.
+  - A sale that brings the holding to zero closes the journal entries with that reason, or `other`. A sale that leaves shares held closes entries with `other` and no lesson; the result then lists `close_reason` and `lesson` under `ignored`, and says so in `journal_note`.
   - Selling more shares than were held on that date is refused; the earlier buy has to be recorded first.
 
 ### The other writes

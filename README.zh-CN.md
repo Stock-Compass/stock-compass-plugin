@@ -10,7 +10,9 @@
 - 让它帮你记录、更正或删除买卖，改止损和目标，设价格提醒；
 - 请它帮你写策略、解读回测。
 
-**只记账。** 记录一笔交易，就是把它写进你在 Stock Compass 的交易日志，不会去券商下单。连接需要 Stock Compass **Pro** 账号。
+**只记账。** 记录一笔交易，就是把它写进你在 Stock Compass 的交易日志，不会去券商下单。连接需要 Stock Compass **Pro** 账号或免费试用。
+
+看看是什么样：[stock-compass.app/zh/ai](https://stock-compass.app/zh/ai) · 网站本身（示例数据）：[演示](https://stock-compass.app/zh/demo)。
 
 ## 让 AI 帮你接入
 
@@ -44,9 +46,9 @@ Skill 由 `SKILL.md` 和三份参考文件组成。AI 只在问题需要时才�
 | 应用 | 怎么连接 |
 | --- | --- |
 | **Claude**（网页版、桌面版、Cowork） | Customize → Plugins → Add → Add marketplace → `Stock-Compass/stock-compass-plugin`，安装 **Stock Compass**，再在插件的 **Connectors** 标签里点连接。 |
-| **Claude Code** | `claude plugin install stock-compass --marketplace Stock-Compass/stock-compass-plugin`，然后运行 `/mcp` 登录。 |
-| **ChatGPT** | 打开 [chatgpt.com/plugins](https://chatgpt.com/plugins) → + → Add custom MCP server，粘贴 `https://stock-compass.app/api/mcp`，认证选 OAuth。 |
-| **其它 MCP 客户端** | 把 `https://stock-compass.app/api/mcp` 添加为远程 MCP 服务器（Streamable HTTP）。认证选 OAuth，或者带请求头 `Authorization: Bearer sc_…` 用 API 密钥。也可以在官方 [MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Stock-Compass/stock-compass) 里搜 `io.github.Stock-Compass/stock-compass`。 |
+| **Claude Code** | `claude plugin marketplace add Stock-Compass/stock-compass-plugin`，再 `claude plugin install stock-compass@stock-compass`。在 Claude Code 里先输入 `/reload-plugins`，再用 `/mcp` 登录。 |
+| **ChatGPT** | 先在 [stock-compass.app](https://stock-compass.app/zh/pricing) 开通 Pro 或免费试用（ChatGPT 的授权页不能开试用），再打开 [chatgpt.com/plugins](https://chatgpt.com/plugins) → + → Add custom MCP server，粘贴 `https://stock-compass.app/api/mcp`，认证选 OAuth。 |
+| **其它 MCP 客户端** | 把 `https://stock-compass.app/api/mcp` 添加为远程 MCP 服务器（Streamable HTTP）。认证选 OAuth，或者带请求头 `Authorization: Bearer sc_…` 用 API 密钥。它在官方 MCP Registry 里叫 `io.github.Stock-Compass/stock-compass`（[条目](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Stock-Compass/stock-compass)），也在 [Glama](https://glama.ai/mcp/connectors/io.github.Stock-Compass/stock-compass) 上。 |
 | **脚本，或不支持 MCP 的工具** | 用 API 密钥调用 REST 接口 `https://stock-compass.app/api/v1`，见 [api.md](skills/stock-compass/references/api.md)。 |
 
 每个应用都会把你带到 stock-compass.app 登录并确认授权：

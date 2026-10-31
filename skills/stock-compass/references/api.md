@@ -17,7 +17,33 @@ All access is to the signed-in user's own records, and needs a Stock Compass **P
 | Works with | `/api/mcp` | `/api/mcp` and `/api/v1` (REST) |
 | Ends | Disconnect in Settings → AI apps & API | Revoke in the same place, or the key's expiry |
 
-Both allow 60 requests a minute. The count is kept separately for each key and each connected app, not for the account: two keys of one user each get 60. Over the limit, the answer is HTTP 429 with `Retry-After: 60`.
+Both allow 60 requests a minute. The count is kept separately for each key and each connected app, not for the account: two keys of one user each get 60. Over MCP every message counts, `initialize` and `tools/list` included, and a write takes two calls (a preview, then the change), so recording 30 trades takes 60 or more. Space a long list of writes about a second apart. Over the limit, the answer is HTTP 429 with `Retry-After: 60`.
+
+## Quick start (REST)
+
+1. Create a key on the site: Settings → AI apps & API (设置 → AI 应用与 API), for example https://stock-compass.app/hk/settings/api-keys. Tick **Allow writes** (允许写入) to try a write.
+2. Keep it out of your code:
+   ```bash
+   export STOCK_COMPASS_KEY=sc_…
+   ```
+3. Read:
+   ```bash
+   curl -s https://stock-compass.app/api/v1/me -H "Authorization: Bearer $STOCK_COMPASS_KEY"
+   curl -s "https://stock-compass.app/api/v1/watchlist?market=hk" -H "Authorization: Bearer $STOCK_COMPASS_KEY"
+   ```
+4. Record a buy of a stock on the watchlist, with your own id so that a retry cannot record it twice. This is a real trade in the account: cash and the holding move.
+   ```bash
+   curl -s https://stock-compass.app/api/v1/trades -H "Authorization: Bearer $STOCK_COMPASS_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"market":"hk","ticker":"700","type":"buy","price":382.4,"quantity":100,"trigger":"other","external_id":"quickstart-1"}'
+   ```
+   Sent again, it records nothing and answers 409 `exists` with the trade already recorded.
+5. Undo it, with the `trade_id` from step 4; cash and the holding go back:
+   ```bash
+   curl -s -X DELETE https://stock-compass.app/api/v1/trades/TRADE_ID -H "Authorization: Bearer $STOCK_COMPASS_KEY"
+   ```
+
+Errors come as `{ "error": { "code", "message" } }`; see [Errors](#errors).
 
 Recording a trade through either one writes it into Stock Compass. Neither ever places an order with a broker.
 
@@ -36,23 +62,29 @@ The MCP endpoint is `https://stock-compass.app/api/mcp`. It uses Streamable HTTP
 - **With OAuth**: add the address as a remote MCP server and choose OAuth. The client finds the sign-in details itself. A request without a token gets HTTP 401, with a `WWW-Authenticate` header that points to `https://stock-compass.app/.well-known/oauth-protected-resource/api/mcp`.
 - **With an API key**: add the address as a remote MCP server and set the header `Authorization: Bearer sc_…`. For example, in Claude Code:
   ```bash
-  claude mcp add --transport http stock-compass https://stock-compass.app/api/mcp --header "Authorization: Bearer sc_…"
+  claude mcp add --scope user --transport http stock-compass https://stock-compass.app/api/mcp --header "Authorization: Bearer sc_…"
   ```
-  Other clients have their own setting for request headers.
+  `--scope user` makes it available in every folder; without it, only in the one the command ran in. Other clients have their own setting for request headers.
+- **For client developers**:
+  - Clients register themselves (dynamic client registration). They are public clients, with no secret, and PKCE with `S256` is required. Redirect URIs (one to ten) are https, http on localhost, or an app scheme, with no fragment. Registrations from sites other than the known apps are limited to 10 an hour from one address.
+  - An access token lasts an hour. A refresh token lasts 90 days and is replaced at each use; an old one sent again revokes that connection's tokens. So a connection unused for 90 days has to be approved again.
+  - A request with no scope asks for both read and write; the user still chooses on the approval page.
+  - MCP protocol versions: 2025-11-25, 2025-06-18 and 2025-03-26.
+  - `/api/v1` sends no CORS headers: an API key does not belong in a web page.
 
 ### Connecting common apps
 
 | App | How to connect |
 | --- | --- |
 | Claude (web, desktop app, Cowork) | Install the Stock Compass plugin: Customize → Plugins → Add → Add marketplace → `Stock-Compass/stock-compass-plugin`, then connect it on the plugin's Connectors tab. Or add the address directly as a custom connector. |
-| Claude Code | `claude plugin install stock-compass --marketplace Stock-Compass/stock-compass-plugin`, then `/mcp` to sign in. Or use `claude mcp add` with the address. |
-| ChatGPT | chatgpt.com/plugins → + → Add custom MCP server. Paste the address and choose OAuth. |
+| Claude Code | `claude plugin marketplace add Stock-Compass/stock-compass-plugin`, then `claude plugin install stock-compass@stock-compass`; in Claude Code, `/reload-plugins`, then `/mcp` to sign in. Or `claude mcp add --scope user --transport http stock-compass` with the address. |
+| ChatGPT | Start Pro or the free trial on stock-compass.app first: ChatGPT's approval page cannot start one. Then chatgpt.com/plugins → + → Add custom MCP server. Paste the address and choose OAuth. |
 | Any other MCP client | Add the address as a remote MCP server (Streamable HTTP), with OAuth or with the API key header. |
 | Scripts, or tools without MCP | Use the REST API below with an API key. |
 
 These menu paths are the apps' own and can change. If one has moved, look for the app's setting for adding a remote MCP server or connector.
 
-**The approval page.** The app opens stock-compass.app, where the user signs in, or signs up, and approves. Access is read only by default, and the button reads **Allow reading** (允许读取). To allow changes, the user ticks **Make changes** (修改) first, and the button becomes **Allow reading and changes** (允许读取和修改). **Deny** (拒绝) refuses. An account that is not on Pro but can still start the free trial sees **Start the N-day free trial and continue** (免费试用 N 天并继续).
+**The approval page.** The app opens stock-compass.app, where the user signs in, or signs up, and approves. Access is read only by default, and the button reads **Allow reading** (允许读取). To allow changes, the user ticks **Make changes** (修改) first, and the button becomes **Allow reading and changes** (允许读取和修改). **Deny** (拒绝) refuses. An account that is not on Pro but can still start the free trial sees **Start the N-day free trial and continue** (免费试用 N 天并继续). With ChatGPT it does not: by OpenAI's rules for apps in ChatGPT, the page only says the account is not on Pro and offers **Back to ChatGPT** (返回 ChatGPT). The user starts the trial on the site, then connects again.
 
 ### Tools and endpoints
 
@@ -74,7 +106,7 @@ The MCP tools map one to one onto the REST endpoints below:
 
 Tool arguments use the same names as the REST fields. In MCP, `types` for `get_signals` is a list. Tool errors come back as a result marked as an error, with the message described under "Errors" below.
 
-**Writes over MCP take two calls.** Sent without `preview_id`, a write tool changes nothing. It answers with `status: "confirmation_needed"`, the `change` as it would be made (for `record_trade`, with the date it defaults to), for `edit_trade` and `delete_trade` the `trade` it changes, and a `preview_id` (`pv_` and 12 hex digits). Once the user agrees, the same arguments sent again with that `preview_id` make the change. A `preview_id` fits only that change on that connection, and lasts 10 to 20 minutes. Sent with any other change, or late, it changes nothing and comes back with a new preview. `record_trade` also returns a `note` that no order is placed. The REST API has no previews.
+**Writes over MCP take two calls.** Sent without `preview_id`, a write tool changes nothing. It answers with `status: "confirmation_needed"`, the `change` as it would be made (for `record_trade`, with the date it defaults to), for `edit_trade` and `delete_trade` the `trade` it changes, and a `preview_id` (`pv_` and 12 hex digits). Once the user agrees, the same arguments sent again with that `preview_id` make the change. A `preview_id` fits only that change on that connection, and lasts 10 to 20 minutes. Sent with any other change, or late, it changes nothing and comes back with a new preview. `record_trade` also returns a `note` that no order is placed. A preview does not check that the change can be made (the stock on the watchlist, enough shares to sell, the plan's limits): the second call does, so look at `get_watchlist` first. The REST API has no previews.
 
 ## REST API
 
@@ -175,7 +207,8 @@ Query:
 Each market's buy, add, exit and trim signals come from the strategy that was active in that market on each date. Price-alert signals are the user's own alerts that fired. Results are newest first.
 
 - `date` is the daily bar the signal was computed on, in the market's time zone. `recorded_at` is when the scan wrote it (UTC).
-- Buy and add are recorded once that bar is final, after the close. Exit and trim are recorded during the session, at the price when the scan ran.
+- Buy and add wait for that bar to be final: they are recorded by the next trading day's 09:00 scan, in that market's time, so a Friday's appear on Monday. Exit and trim are recorded during the session, at the price when the scan ran.
+- `days` counts back from the market's own date (for all markets, the earliest of them), not from UTC's.
 - The signal says which strategy and type fired, not which condition of the rule.
 
 **Runs.** A rule that stays true is recorded again on every bar: an exit rule that holds for a week gives five exit signals. Signals of one strategy, ticker and type on consecutive scanned bars form one run.
@@ -196,7 +229,7 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 
 ### GET /trades
 
-Query: `market`, `ticker`, `from`, `to`, `external_id` (all optional); `limit` (1–500, default 100); `offset` (default 0).
+Query: `market`, `ticker`, `from`, `to`, `external_id` (all optional); `limit` (1–500, default 100); `offset` (default 0). A `ticker` without `market` finds its market from the code: `700` is 0700.HK, `600519` is 600519.SS, `BRK.B` is BRK-B.
 
 Results are newest first. `external_id` is null for a trade recorded without one, such as on the website. `fees` is the fee the client reported, with `fees_source: "provided"`; it is null with `"estimated"` when none was. `estimated_fees` is then the estimate from the user's current trading-cost settings, as the website's P&L counts it; it is null when a fee was reported.
 
@@ -233,15 +266,16 @@ Records a buy or sell the user made, exactly as the trade form on the website do
   - `signal`: on a strategy signal. Counts as by rules.
   - `manual`: the user's own decision. Counts as by gut feel.
   - `other`: neither, such as a rebalance. It counts on neither side.
-  - Without `trigger`, the buy is filed as `signal` when the stock had a buy signal in the last 14 days (for a stock already held, an add or buy signal; the active strategy's signal first), otherwise as `manual`. Sending `signal` when there is none gives 422 `no_recent_signal`.
+  - Without `trigger`, the buy is filed as `signal` when the strategy in use in that market on the signal's date gave the stock a buy signal in the last 14 days, counted back from today, not from `traded_at` (for a stock already held, an add or buy signal; the strategy active now first), and otherwise as `manual`. Sending `signal` when there is none gives 422 `no_recent_signal`.
+  - Holdings bought before the user connected are best sent with `other`: left out, they count as gut feel, or under a recent signal they did not follow.
 - **`close_reason`** is the reason on the journal entry, as the website's **Close position** (平仓) form gives it. It is kept on the entry; the journal's statistics do not use it. **Exits against the plan** (按计划复盘退出) judges each exit by its price against the stop and target.
   - `rule_exit`: **Exit rule fired** (触发清仓规则), sold because the strategy's exit rule fired;
   - `rule_trim`: **Trim rule fired** (触发减仓规则), sold part on the trim rule;
   - `manual_stop`: **Manual stop-loss** (主动止损), sold at the user's own stop;
   - `manual_target`: **Manual take-profit** (主动止盈), sold at the user's own target;
   - `other`: **Other** (其他).
-- **Selling to zero** closes the journal entries with `close_reason`, or with `other`. A partial sale closes the oldest open journal entries first (FIFO).
-- **Selling more** than was held on `traded_at` gives 409 `oversell`. A sale of a stock not on the watchlist gives the same: nothing is held.
+- **Selling to zero** closes the journal entries with `close_reason`, or with `other`. A partial sale closes the oldest open journal entries first (FIFO), with reason `other` and no lesson: `close_reason` and `lesson` are not kept, and the answer lists them under `ignored`, with a `journal_note` saying so.
+- **Selling more** than was held on `traded_at` gives 409 `oversell`. A sale of a stock not on the watchlist gives 409 `not_on_watchlist`, or with `add_to_watchlist: true`, 409 `oversell`: nothing is held.
 - **With `add_to_watchlist`**, the stock is added only once the rest of the request is valid. The answer then has `"added_to_watchlist": true`; a stock the quote source does not know gives 404 `unknown_ticker`, and a full watchlist 403 `limit`.
 - **`external_id`** guards against recording a trade twice. It is unique per user and market.
   - Sent again, the same id records nothing and answers 409 `exists`, with the trade already recorded under it beside the error: `{ "error": { … }, "trade": { "id": "…", … } }`. That is so whatever else the request says.
@@ -254,11 +288,11 @@ Answers 201:
 
 ```json
 { "trade_id": "…", "ticker": "0700.HK", "market": "hk", "type": "buy", "price": 382.4, "quantity": 200,
-  "traded_at": "2026-10-23", "external_id": "FUTU-8231", "fees": 64.4, "fees_source": "provided", "shares_before": 0, "shares_after": 200, "cash": 12345.6,
+  "traded_at": "2026-10-23", "external_id": "FUTU-8231", "fees": 3.86, "fees_source": "provided", "shares_before": 0, "shares_after": 200, "cash": 12345.6,
   "journal_entry_id": 42, "trigger": { "type": "signal", "signal_id": 123, "signal_date": "2026-10-22" } }
 ```
 
-For a sale, `journal_closed_shares` takes the place of `journal_entry_id` and `trigger`. `external_id` is there only when one was sent.
+For a sale, `journal_closed_shares` takes the place of `journal_entry_id` and `trigger`, and a sale that leaves shares held may add `ignored` and `journal_note`. `external_id` is there only when one was sent.
 
 ### PATCH /trades/{id}
 

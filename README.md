@@ -4,9 +4,11 @@
 
 # Stock Compass for AI apps
 
-Use your [Stock Compass](https://stock-compass.app) records from any AI app or agent. You can ask about your watchlist, holdings, signals, trades and journal; have it record, correct or delete a trade, change a stop or target, or set a price alert; or get help writing and backtesting a strategy. It covers Hong Kong, US and China A-shares.
+Use your [Stock Compass](https://stock-compass.app) records from any AI app or agent. You can ask about your watchlist, holdings, signals, trades and journal; have it record, correct or delete a trade, change a stop or target, or set a price alert; or get help writing a strategy and reading a backtest. It covers Hong Kong, US and China A-shares.
 
-**It only keeps records.** Recording a trade writes it into your Stock Compass journal. It never places an order with a broker. Connecting needs a Stock Compass **Pro** account.
+**It only keeps records.** Recording a trade writes it into your Stock Compass journal. It never places an order with a broker. Connecting needs a Stock Compass **Pro** account or the free trial.
+
+What it looks like: [stock-compass.app/en/ai](https://stock-compass.app/en/ai) · the site itself, with sample data: [demo](https://stock-compass.app/en/demo).
 
 ## Let your AI set it up
 
@@ -38,9 +40,9 @@ The skill is three reference files plus `SKILL.md`. An AI reads a file only when
 | App | How |
 | --- | --- |
 | **Claude** (web, desktop app, Cowork) | Customize → Plugins → Add → Add marketplace → `Stock-Compass/stock-compass-plugin`. Install **Stock Compass**, then connect it on the plugin's **Connectors** tab. |
-| **Claude Code** | `claude plugin install stock-compass --marketplace Stock-Compass/stock-compass-plugin`, then `/mcp` to sign in. |
-| **ChatGPT** | [chatgpt.com/plugins](https://chatgpt.com/plugins) → + → Add custom MCP server. Paste `https://stock-compass.app/api/mcp` and choose OAuth. |
-| **Any other MCP client** | Add `https://stock-compass.app/api/mcp` as a remote MCP server (Streamable HTTP) with OAuth, or with the header `Authorization: Bearer sc_…` and an API key. It is also in the official [MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Stock-Compass/stock-compass) as `io.github.Stock-Compass/stock-compass`. |
+| **Claude Code** | `claude plugin marketplace add Stock-Compass/stock-compass-plugin`, then `claude plugin install stock-compass@stock-compass`. In Claude Code, `/reload-plugins`, then `/mcp` to sign in. |
+| **ChatGPT** | Start Pro or the free trial on [stock-compass.app](https://stock-compass.app/en/pricing) first: ChatGPT's approval page cannot start one. Then [chatgpt.com/plugins](https://chatgpt.com/plugins) → + → Add custom MCP server. Paste `https://stock-compass.app/api/mcp` and choose OAuth. |
+| **Any other MCP client** | Add `https://stock-compass.app/api/mcp` as a remote MCP server (Streamable HTTP) with OAuth, or with the header `Authorization: Bearer sc_…` and an API key. It is in the official MCP Registry as `io.github.Stock-Compass/stock-compass` ([listing](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Stock-Compass/stock-compass)) and on [Glama](https://glama.ai/mcp/connectors/io.github.Stock-Compass/stock-compass). |
 | **Scripts, or tools without MCP** | Use the REST API at `https://stock-compass.app/api/v1` with an API key. See [api.md](skills/stock-compass/references/api.md). |
 
 Each app sends you to stock-compass.app to sign in and approve it:
@@ -61,7 +63,7 @@ You can disconnect, or revoke an API key, at any time under **Settings → AI ap
 - "What's on my Hong Kong watchlist, and what are my stops?"
 - "Which buy signals did my strategies record this week?"
 - "I bought 200 shares of 700 at 382.4 today. Record it, stop at 350."
-- "Help me write a breakout strategy with an 8% stop and import it."
+- "Help me write a breakout strategy with an 8% stop, and give me the JSON to import."
 - "Why did my backtest say PARTIAL?"
 - "What does 'cost of waiting' on my journal page mean?"
 
