@@ -1,7 +1,7 @@
 {
   "name": "stock-compass",
   "displayName": "Stock Compass",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "Your Stock Compass watchlist, holdings, signals, trades and journal in a conversation, and a skill that explains all of Stock Compass: strategies and indicators, backtests, fees, execution discipline, alerts, plans and the API. Hong Kong, US and China A-shares. Records only; never places an order. Needs a Stock Compass Pro account.",
   "author": {
     "name": "Stock Compass",
