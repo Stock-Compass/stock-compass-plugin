@@ -89,7 +89,7 @@ Stock Compass 只以哈希形式保存登录令牌和 API 密钥，并记录每�
 
 ## 支持
 
-发邮件到 support@stock-compass.app，或者[提交 issue](https://github.com/Stock-Compass/stock-compass-plugin/issues)。
+发邮件到 [support@stock-compass.app](mailto:support@stock-compass.app)，或者[提交 issue](https://github.com/Stock-Compass/stock-compass-plugin/issues)。
 
 ## 许可证
 

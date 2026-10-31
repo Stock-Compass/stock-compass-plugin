@@ -81,7 +81,7 @@ When you use it, the AI reads the records it needs from your account and sends S
 
 ## Support
 
-Email support@stock-compass.app or [open an issue](https://github.com/Stock-Compass/stock-compass-plugin/issues).
+Email [support@stock-compass.app](mailto:support@stock-compass.app) or [open an issue](https://github.com/Stock-Compass/stock-compass-plugin/issues).
 
 ## License
 
