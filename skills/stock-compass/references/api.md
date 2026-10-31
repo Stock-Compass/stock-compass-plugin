@@ -107,6 +107,8 @@ The MCP tools map one to one onto the REST endpoints below:
 | `set_stop_target` | `PATCH /positions/{ticker}` |
 | `create_price_alert` | `POST /alerts` |
 
+Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`) are REST only for now.
+
 Tool arguments use the same names as the REST fields. In MCP, `types` for `get_signals` is a list. Tool errors come back as a result marked as an error, with the message described under "Errors" below.
 
 **Writes over MCP take two calls.** Sent without `preview_id`, a write tool changes nothing. It answers with `status: "confirmation_needed"`, the `change` as it would be made (for `record_trade`, with the date it defaults to), for `edit_trade` and `delete_trade` the `trade` it changes, and a `preview_id` (`pv_` and 12 hex digits). Once the user agrees, the same arguments sent again with that `preview_id` make the change. A `preview_id` fits only that change on that connection, and lasts 10 to 20 minutes. Sent with any other change, or late, it changes nothing and comes back with a new preview. `record_trade` also returns a `note` that no order is placed. A preview does not check that the change can be made (the stock on the watchlist, enough shares to sell, the plan's limits): the second call does, so look at `get_watchlist` first. The REST API has no previews.
@@ -392,6 +394,36 @@ Body: `{ "market": "us", "ticker": "AAPL", "direction": "below", "threshold": 21
 - At most 500 alerts per account (403 `limit`).
 - Answers 201 with `{ id, ticker, market, direction, threshold, note }`.
 
+### GET /account
+
+The cash the user tracks in each market, in that market's currency. `amount` is `null` where cash is not tracked; trades then move no cash there.
+
+```json
+{ "cash": { "hk": { "amount": 12000, "currency": "HKD" }, "us": { "amount": null, "currency": "USD" }, "cn": { "amount": 5000, "currency": "CNY" } } }
+```
+
+### PUT /cash/{market}
+
+Body: `{ "cash": 12000 }`. Sets the balance to what the broker shows, as the cash box on the website does, after a deposit or withdrawal for example. `null` stops tracking cash in that market. Negative is allowed (a buy above the cash leaves it negative). Answers `{ market, cash, currency }`.
+
+### GET /dividends
+
+Query, all optional: `market`, `ticker`, `from` and `to` (ex-dividend dates), `limit` (1–500, default 100), `offset` (default 0). A `ticker` without `market` finds its market from the code, as for `GET /trades`.
+
+Answers `{ dividends, total, next_offset }`, newest ex-dividend date first; `next_offset` is null on the last page. Each dividend: `{ id, ticker, market, ex_div_date, pay_date, dps, currency, shares, amount, cash_delta, note, recorded_at }`. `cash_delta` is what it added to the cash; `null` when cash was not tracked.
+
+### POST /dividends
+
+Body: `{ "market": "hk", "ticker": "700", "ex_div_date": "2026-05-15", "dps": 4.5, "shares": 100, "pay_date": "2026-06-01", "currency": "HKD", "cash_amount": 427.5, "note": "…" }`. `pay_date`, `currency` (default the market's), `cash_amount` and `note` are optional.
+
+- Recorded as the website's dividends page records it. `cash_amount` is what arrived in the market's cash after any withholding tax; with it, the cash goes up by that much in the same step. Without it, no cash moves. In a market whose cash is not tracked, the dividend is saved and `cash_added` is false.
+- Answers 201 with `{ dividend, cash_added, cash }`.
+- There is no `external_id` here: the same dividend sent twice is recorded twice. After a timeout, look at `GET /dividends` before sending it again.
+
+### DELETE /dividends/{id}
+
+Deletes a dividend recorded by mistake and takes back what it added to the cash. Answers `{ deleted: true, dividend, cash_reversed, cash }`.
+
 ## Errors
 
 Every error has the same shape:
@@ -415,6 +447,7 @@ The `message` is written for the user; pass it on.
 | 404 | `not_on_watchlist` | Removing a stock that is not on the watchlist. |
 | 404 | `no_open_position` | Setting levels on a stock that is not held. |
 | 404 | `trade_not_found` | No trade of this user has that id. |
+| 404 | `dividend_not_found` | No dividend of this user has that id. |
 | 409 | `exists` | Already on the watchlist, the same alert already exists, or a trade is already recorded with that `external_id` (the body also has the `trade`). |
 | 409 | `holding` | Removing a stock that is still held. |
 | 409 | `not_on_watchlist` | Recording a trade in a stock that is not on the watchlist. |
@@ -422,6 +455,7 @@ The `message` is written for the user; pass it on.
 | 422 | `no_recent_signal` | `trigger: signal` with no recent signal. |
 | 429 | `rate_limited` | More than 60 requests in a minute; retry after 60 seconds. |
 | 500 | `internal` | Something went wrong on the server. Try again later. |
+| 503 | `not_available` | Recording dividends through the API is not switched on yet; record it on the website's Dividends page. |
 
 Any request can also give 401, 403 `pro_required`, 429 and 500. Besides those:
 
@@ -439,6 +473,11 @@ Any request can also give 401, 403 `pro_required`, 429 and 500. Besides those:
 | `PATCH /positions/{ticker}` | 400, 403 `scope`, 404 `no_open_position` |
 | `GET /alerts` | 400 `bad_request` |
 | `POST /alerts` | 400, 403 `scope` or `limit`, 409 `exists` |
+| `GET /account` | none |
+| `PUT /cash/{market}` | 400, 403 `scope` |
+| `GET /dividends` | 400 `bad_request` or `bad_ticker` |
+| `POST /dividends` | 400 `bad_request` or `bad_ticker`, 403 `scope`, 503 `not_available` |
+| `DELETE /dividends/{id}` | 400, 403 `scope`, 404 `dividend_not_found`, 503 `not_available` |
 
 ## What the website shows the user
 
