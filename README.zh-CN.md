@@ -14,6 +14,10 @@
 
 看看是什么样：[stock-compass.app/zh/ai](https://stock-compass.app/zh/ai) · 网站本身（示例数据）：[演示](https://stock-compass.app/zh/demo)。
 
+<p align="center"><img src="assets/record-a-trade.gif" width="720" alt="在 ChatGPT 里让 AI 记一笔买入：5 股 NVDA，每股 205。AI 先列出这笔交易，标着待确认、还没保存；点确认保存后，Stock Compass 才记下，并列出更新后的持仓。"></p>
+
+<p align="center"><sub>在 ChatGPT 里记一笔买入：先看预览，你确认后才保存。不会去券商下单。</sub></p>
+
 ## 开始前确认两件事
 
 - **Stock Compass Pro 账号或免费试用。** 新账号可以免费试用 Pro，不用绑卡。用 ChatGPT 的话，要先在网站上开通：ChatGPT 的授权页不能开试用。

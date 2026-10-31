@@ -10,6 +10,10 @@ Use your [Stock Compass](https://stock-compass.app) records from any AI app or a
 
 What it looks like: [stock-compass.app/en/ai](https://stock-compass.app/en/ai) · the site itself, with sample data: [demo](https://stock-compass.app/en/demo).
 
+<p align="center"><img src="assets/record-a-trade.gif" width="720" alt="In ChatGPT, the user asks to record a buy of 5 NVDA at 205. The AI shows the trade marked pending confirmation, not saved yet; after Confirm and save trade, Stock Compass records it and lists the updated holdings."></p>
+
+<p align="center"><sub>Recording a buy in ChatGPT: a preview first, saved only after you confirm. No order goes to a broker.</sub></p>
+
 ## Before you start
 
 - **A Stock Compass Pro account, or the free trial.** New accounts can try Pro free, with no card. With ChatGPT, start it on the site first: ChatGPT's approval page cannot start one.
