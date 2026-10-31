@@ -118,6 +118,7 @@ Base URL: `https://stock-compass.app/api/v1`. It accepts **API keys only**; OAut
 - `GET` needs the read scope; `POST`, `PATCH` and `DELETE` need write.
 - `market` is `hk`, `us` or `cn`.
 - New fields and parameters are optional, so a client written for an earlier version keeps working.
+- Every list answers with `total`, the number of items that match before paging, and `next_offset`, the `offset` of the next page, or null on the last one.
 
 ### Tickers
 
@@ -163,7 +164,7 @@ Query, all optional:
 - `holding`: `true` for holdings only, `false` for stocks not held;
 - `limit` (1–1000) and `offset`: one page. Without `limit`, the whole list.
 
-`total` is the number of stocks that match, before paging. `limit` and `offset` come back when a page was asked for.
+`total` is the number of stocks that match, before paging; `next_offset` is null on the last page, and always without `limit`. `limit` and `offset` come back when a page was asked for.
 
 `stop` and `target` are the ones in force on the open position; they are null when the stock is not held. A holding also has:
 - `opened_at`: the date of the oldest open journal entry, when the position was opened;
@@ -200,11 +201,15 @@ Query: `market` (optional when the ticker carries its suffix, as in `0700.HK`).
 
 ### GET /signals
 
-Query:
-- `market` (optional);
+Query, all optional:
+- `market`;
 - `days`: 0–90, default 7;
+- `from` and `to`: dates, to move or narrow the window. `from` defaults to `days` before `to`, and `to` to today; at most 90 days apart;
+- `ticker`: one stock, in any form GET /trades takes (`700` is 0700.HK without `market`);
 - `types`: comma-separated, any of `buy,add,exit,trim,price_alert`; default `buy,add,exit,trim`;
-- `state`: `all` (the default), `new` or `active`. See runs below.
+- `state`: `all` (the default), `new` or `active`. See runs below;
+- `recorded_after`: a time, such as `2026-10-31T01:00:00Z`: only signals whose `recorded_at` is later. For polling, send the latest `recorded_at` you have; a buy for an earlier `date` can still arrive, since buys are recorded the next trading day;
+- `limit` (1–500) and `offset` (default 0): one page. Without `limit`, every match. `total` counts every match; `next_offset` is null on the last page.
 
 Each market's buy, add, exit and trim signals come from the strategy that was active in that market on each date. Price-alert signals are the user's own alerts that fired. Results are newest first.
 
@@ -212,6 +217,7 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 - Buy and add wait for that bar to be final: they are recorded by the next trading day's 09:00 scan, in that market's time, so a Friday's appear on Monday. Exit and trim are recorded during the session, at the price when the scan ran.
 - `days` counts back from the market's own date (for all markets, the earliest of them), not from UTC's.
 - The signal says which strategy and type fired, not which condition of the rule.
+- The answer gives the window's `from`, and `to` when one was sent.
 
 **Runs.** A rule that stays true is recorded again on every bar: an exit rule that holds for a week gives five exit signals. Signals of one strategy, ticker and type on consecutive scanned bars form one run.
 - `active_since` is the date of the run's first bar, and `occurrences` how many bars of the run there have been up to this signal (1 on the first).
@@ -220,7 +226,7 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 - `state=new` returns only the first bar of each run, `state=active` only the later ones. A price-alert signal is always a run of one.
 
 ```json
-{ "from": "2026-10-18",
+{ "from": "2026-10-18", "total": 1, "next_offset": null,
   "note": "Buy and add signals are recorded once their daily bar is final …",
   "signals": [
     { "id": 123, "ticker": "ANF", "market": "us", "type": "exit", "date": "2026-10-23",
@@ -233,14 +239,14 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 
 Query: `market`, `ticker`, `from`, `to`, `external_id` (all optional); `limit` (1–500, default 100); `offset` (default 0). A `ticker` without `market` finds its market from the code: `700` is 0700.HK, `600519` is 600519.SS, `BRK.B` is BRK-B.
 
-Results are newest first. `external_id` is null for a trade recorded without one, such as on the website. `fees` is the fee the client reported, with `fees_source: "provided"`; it is null with `"estimated"` when none was. `estimated_fees` is then the estimate from the user's trading-cost settings that the trade was recorded with, as the website's P&L counts it (for an old trade with none kept, from the current settings); it is null when a fee was reported.
+Results are newest first. `total` is the number of trades that match; `next_offset` is null on the last page. `external_id` is null for a trade recorded without one, such as on the website. `fees` is the fee the client reported, with `fees_source: "provided"`; it is null with `"estimated"` when none was. `estimated_fees` is then the estimate from the user's trading-cost settings that the trade was recorded with, as the website's P&L counts it (for an old trade with none kept, from the current settings); it is null when a fee was reported.
 
 ```json
 { "trades": [
     { "id": "…", "ticker": "0700.HK", "market": "hk", "type": "buy", "price": 382.4,
       "quantity": 200, "traded_at": "2026-10-23", "recorded_at": "2026-10-23T03:00:00Z",
       "external_id": "FUTU-8231", "fees": 3.86, "fees_source": "provided", "estimated_fees": null }
-  ], "limit": 100, "offset": 0 }
+  ], "limit": 100, "offset": 0, "total": 1, "next_offset": null }
 ```
 
 ### POST /trades
@@ -357,13 +363,15 @@ Body: `{ "stop": 350, "target": 450 }`. Send either field or both; `null` clears
 
 Query: `market` (optional).
 
+All of the user's alerts come in one answer (an account holds at most 500): `total` is their number and `next_offset` is null.
+
 `from_plan` is true for an alert the website keeps on the planned stop or target of an open position. These alerts move when the plan changes; the website never changes alerts the user created.
 
 ```json
 { "alerts": [
   { "id": "…", "ticker": "AAPL", "market": "us", "direction": "below", "threshold": 210,
     "note": null, "from_plan": false, "triggered_at": null, "created_at": "…" }
-] }
+], "total": 1, "next_offset": null }
 ```
 
 ### POST /alerts
