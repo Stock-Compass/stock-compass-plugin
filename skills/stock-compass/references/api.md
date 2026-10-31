@@ -54,6 +54,7 @@ Recording a trade through either one writes it into Stock Compass. Neither ever 
 - A key looks like `sc_` followed by 43 letters, digits, `-` or `_`. It is shown once, when it is created. Stock Compass stores only a SHA-256 hash of it, so it cannot be shown again.
 - When creating a key, the user gives it a name (up to 60 characters) and picks an expiry: 30 days, 90 days, 1 year, or never. Writes are allowed only if **Allow writes** (允许写入) is ticked.
 - A user can have at most 5 active keys. Revoking a key takes effect at once.
+- In the last 14 days before a key expires, every REST answer carries an `X-API-Key-Expires-At` header (an ISO time). `GET /me` gives the key's and the plan's end dates. A revoked or expired key gets 401 `key_revoked` or `key_expired`.
 - Send the key as a header on every request: `Authorization: Bearer sc_…`.
 - Treat a key as a password. Keep it in the agent's or the script's own secret settings, never in a conversation, a shared file or a repository. If it leaks, revoke it.
 
@@ -151,10 +152,12 @@ curl -s https://stock-compass.app/api/v1/me -H "Authorization: Bearer $STOCK_COM
 
 ### GET /me
 
-What the key can do.
+What the key can do, and when the key and the plan end (`null`: never).
 
 ```json
-{ "user_id": "…", "scopes": ["read", "write"], "requests_per_minute": 60 }
+{ "user_id": "…", "scopes": ["read", "write"], "requests_per_minute": 60,
+  "key": { "id": "…", "name": "Broker sync", "expires_at": "2027-01-20T00:00:00Z" },
+  "plan": { "tier": "pro", "expires_at": null } }
 ```
 
 ### GET /watchlist
@@ -216,7 +219,8 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 - `date` is the daily bar the signal was computed on, in the market's time zone. `recorded_at` is when the scan wrote it (UTC).
 - Buy and add wait for that bar to be final: they are recorded by the next trading day's 09:00 scan, in that market's time, so a Friday's appear on Monday. Exit and trim are recorded during the session, at the price when the scan ran.
 - `days` counts back from the market's own date (for all markets, the earliest of them), not from UTC's.
-- The signal says which strategy and type fired, not which condition of the rule.
+- `strategy` and `strategy_id` name the strategy that fired.
+- Why it fired: a strategy signal has `indicators`, the indicator values when it was recorded (which condition held is not recorded); MCP's `get_signals` leaves them out. A price-alert signal has `alert`: the alert's `id`, `threshold`, `direction` and `note`, `plan` (`stop` or `target` when the alert is the plan's stop or target from the journal, otherwise `null`, also when the alert has been deleted since), and `touched` (the bar's low or high that crossed the level, and its date, when it was a bar and not the price at the scan).
 - The answer gives the window's `from`, and `to` when one was sent.
 
 **Runs.** A rule that stays true is recorded again on every bar: an exit rule that holds for a week gives five exit signals. Signals of one strategy, ticker and type on consecutive scanned bars form one run.
@@ -226,12 +230,18 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 - `state=new` returns only the first bar of each run, `state=active` only the later ones. A price-alert signal is always a run of one.
 
 ```json
-{ "from": "2026-10-18", "total": 1, "next_offset": null,
+{ "from": "2026-10-18", "total": 2, "next_offset": null,
   "note": "Buy and add signals are recorded once their daily bar is final …",
   "signals": [
     { "id": 123, "ticker": "ANF", "market": "us", "type": "exit", "date": "2026-10-23",
-      "price": 97.2, "strategy": "Trend", "recorded_at": "2026-10-23T17:05:00Z",
-      "active_since": "2026-10-19", "occurrences": 5 }
+      "price": 97.2, "strategy": "Trend", "strategy_id": "…", "recorded_at": "2026-10-23T17:05:00Z",
+      "active_since": "2026-10-19", "occurrences": 5,
+      "indicators": { "rsi_14": 71.2, "today_change_pct": 3.4, "price_vs_ma20": 8.1 } },
+    { "id": 124, "ticker": "AAPL", "market": "us", "type": "price_alert", "date": "2026-10-23",
+      "price": 226.4, "strategy": null, "strategy_id": null, "recorded_at": "2026-10-23T15:05:00Z",
+      "active_since": "2026-10-23", "occurrences": 1,
+      "alert": { "id": "…", "threshold": 227, "direction": "below", "note": null, "plan": "stop",
+                 "touched": { "price": 225.9, "date": "2026-10-23" } } }
   ] }
 ```
 
@@ -395,7 +405,8 @@ The `message` is written for the user; pass it on.
 | Status | Codes | Meaning |
 | --- | --- | --- |
 | 400 | `bad_request`, `bad_ticker` | A field is missing or invalid; the message says which. |
-| 401 | `unauthorized` | No key, or a key that is unknown, revoked or expired. |
+| 401 | `unauthorized` | No key, or a key Stock Compass does not know. |
+| 401 | `key_revoked`, `key_expired` | The key was revoked, or has expired; the message gives the date. Create a new key. |
 | 403 | `scope` | A read-only key tried to write. |
 | 403 | `pro_required` | The account is not on Pro. |
 | 403 | `limit` | Watchlist or price-alert limit reached. |
