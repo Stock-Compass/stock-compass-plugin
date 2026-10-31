@@ -6,9 +6,17 @@
 
 Use your [Stock Compass](https://stock-compass.app) records from any AI app or agent. You can ask about your watchlist, holdings, signals, trades and journal; have it record, correct or delete a trade, change a stop or target, or set a price alert; or get help writing a strategy and reading a backtest. It covers Hong Kong, US and China A-shares.
 
-**It only keeps records.** Recording a trade writes it into your Stock Compass journal. It never places an order with a broker. Connecting needs a Stock Compass **Pro** account or the free trial.
+**It only keeps records.** Recording a trade writes it into your Stock Compass journal. It never places an order with a broker.
 
 What it looks like: [stock-compass.app/en/ai](https://stock-compass.app/en/ai) · the site itself, with sample data: [demo](https://stock-compass.app/en/demo).
+
+## Before you start
+
+- **A Stock Compass Pro account, or the free trial.** New accounts can try Pro free, with no card. With ChatGPT, start it on the site first: ChatGPT's approval page cannot start one.
+- **An AI app whose plan can add a custom MCP server** (also called a custom connector). That is each company's rule, and it changes. As their help pages put it on 2026-10-31:
+  - **Claude**: every plan (Free, Pro, Max, Ultra, Team, Enterprise). Free allows one custom connector; on Team and Enterprise an owner adds it for the organization first. ([Claude help](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp))
+  - **ChatGPT**: on chatgpt.com, not the mobile apps. Business, Enterprise and Edu workspaces can (on Business, admins and owners add it). A personal Pro account can read but not make changes. Other plans are not listed. ([OpenAI help](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt))
+  - **Claude Code, Cursor and other MCP clients**: add a remote MCP server; where OAuth is not supported, use an API key.
 
 ## Let your AI set it up
 

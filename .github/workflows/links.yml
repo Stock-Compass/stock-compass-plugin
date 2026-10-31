@@ -1,0 +1,32 @@
+# Checks every link in the READMEs, the skill and the manifests: each Monday,
+# on every pull request, and by hand. Links inside code blocks are not
+# checked (lychee's default). Left out: stock-compass.app/api/* (needs a key
+# or a POST), chatgpt.com (signed-in pages) and help.openai.com (refuses
+# requests that are not from a browser).
+
+name: Links
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          args: >-
+            --no-progress
+            --accept '200..=299, 429'
+            --exclude '^https://stock-compass\.app/api/'
+            --exclude '^https://chatgpt\.com'
+            --exclude '^https://help\.openai\.com'
+            './**/*.md' '.claude-plugin/*.json' 'server.json'

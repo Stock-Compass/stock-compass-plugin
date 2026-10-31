@@ -2,6 +2,8 @@
 
 Read this when the user wants to connect an AI app, an agent or a script to Stock Compass, or asks about API keys, rate limits or the REST endpoints.
 
+On the website: [connecting AI apps](https://stock-compass.app/en/ai) (which plans of each app can, and the steps by hand) · [the setup guide an AI follows](https://stock-compass.app/ai/setup.md) · [stock-compass.app](https://stock-compass.app).
+
 **Labels.** Buttons are named as the English site shows them, followed by the Chinese site's label in brackets. When you point the user to one, use the label for the language their site is in.
 
 All access is to the signed-in user's own records, and needs a Stock Compass **Pro** account (or an admin account). The plan is checked on every call, so access stops when Pro lapses.
@@ -78,7 +80,7 @@ The MCP endpoint is `https://stock-compass.app/api/mcp`. It uses Streamable HTTP
 | --- | --- |
 | Claude (web, desktop app, Cowork) | Install the Stock Compass plugin: Customize → Plugins → Add → Add marketplace → `Stock-Compass/stock-compass-plugin`, then connect it on the plugin's Connectors tab. Or add the address directly as a custom connector. |
 | Claude Code | `claude plugin marketplace add Stock-Compass/stock-compass-plugin`, then `claude plugin install stock-compass@stock-compass`; in Claude Code, `/reload-plugins`, then `/mcp` to sign in. Or `claude mcp add --scope user --transport http stock-compass` with the address. |
-| ChatGPT | Start Pro or the free trial on stock-compass.app first: ChatGPT's approval page cannot start one. Then chatgpt.com/plugins → + → Add custom MCP server. Paste the address and choose OAuth. |
+| ChatGPT | Start Pro or the free trial on stock-compass.app first: ChatGPT's approval page cannot start one. Then chatgpt.com/plugins → + → Add custom MCP server. Paste the address and choose OAuth. Which plans can add one is OpenAI's rule; as its [help page](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt) put it on 2026-10-31: on the web, Business, Enterprise and Edu workspaces (on Business, admins and owners), and a personal Pro account for reading only. |
 | Any other MCP client | Add the address as a remote MCP server (Streamable HTTP), with OAuth or with the API key header. |
 | Scripts, or tools without MCP | Use the REST API below with an API key. |
 

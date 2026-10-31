@@ -10,9 +10,17 @@
 - 让它帮你记录、更正或删除买卖，改止损和目标，设价格提醒；
 - 请它帮你写策略、解读回测。
 
-**只记账。** 记录一笔交易，就是把它写进你在 Stock Compass 的交易日志，不会去券商下单。连接需要 Stock Compass **Pro** 账号或免费试用。
+**只记账。** 记录一笔交易，就是把它写进你在 Stock Compass 的交易日志，不会去券商下单。
 
 看看是什么样：[stock-compass.app/zh/ai](https://stock-compass.app/zh/ai) · 网站本身（示例数据）：[演示](https://stock-compass.app/zh/demo)。
+
+## 开始前确认两件事
+
+- **Stock Compass Pro 账号或免费试用。** 新账号可以免费试用 Pro，不用绑卡。用 ChatGPT 的话，要先在网站上开通：ChatGPT 的授权页不能开试用。
+- **你用的 AI 应用，所在套餐能添加自定义 MCP 服务器**（也叫自定义连接器）。这是各家自己的规则，会变。按两家帮助中心 2026-10-31 的说法：
+  - **Claude**：所有套餐都可以（Free、Pro、Max、Ultra、Team、Enterprise）。Free 只能加 1 个；Team 和 Enterprise 要组织所有者先添加。（[Claude 帮助中心](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp)）
+  - **ChatGPT**：只能在 chatgpt.com 网页版添加，手机 App 不行。Business、Enterprise、Edu 工作区可以（Business 只有管理员和所有者能加）；个人 Pro 账号只能读取，不能修改；其他套餐 OpenAI 没有列出。（[OpenAI 帮助中心](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt)）
+  - **Claude Code、Cursor 等 MCP 客户端**：添加远程 MCP 服务器；不支持 OAuth 的用 API 密钥。
 
 ## 让 AI 帮你接入
 
