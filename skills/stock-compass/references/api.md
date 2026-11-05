@@ -107,7 +107,7 @@ The MCP tools map one to one onto the REST endpoints below:
 | `set_stop_target` | `PATCH /positions/{ticker}` |
 | `create_price_alert` | `POST /alerts` |
 
-Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`) are REST only for now.
+Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`) are REST only for now, and so is a holding's `exit_mode`.
 
 Tool arguments use the same names as the REST fields. In MCP, `types` for `get_signals` is a list. Tool errors come back as a result marked as an error, with the message described under "Errors" below.
 
@@ -174,7 +174,8 @@ Query, all optional:
 `stop` and `target` are the ones in force on the open position; they are null when the stock is not held. A holding also has:
 - `opened_at`: the date of the oldest open journal entry, when the position was opened;
 - `journal_entry_id`, `entry_stop`, `entry_target`: the latest buy's journal entry, whose levels are in force, with the stop and target set when it was bought;
-- `stop_history`: every change of that entry's stop since, oldest first, from any source (website, API or app). `from` or `to` is null when there was no stop. Target changes are not kept.
+- `stop_history`: every change of that entry's stop since, oldest first, from any source (website, API or app). `from` or `to` is null when there was no stop. Target changes are not kept;
+- `exit_mode`: how the holding's exits are watched, `strategy`, `levels_only` or `external` (see `PATCH /positions/{ticker}`).
 
 ```json
 { "items": [
@@ -183,6 +184,7 @@ Query, all optional:
     "opened_at": "2026-10-02", "journal_entry_id": 42, "entry_stop": 350, "entry_target": 450,
     "stop_history": [ { "at": "2026-10-15T08:10:00Z", "from": 350, "to": 358 },
                       { "at": "2026-10-21T08:05:00Z", "from": 358, "to": 365 } ],
+    "exit_mode": "strategy",
     "added_at": "2026-09-01T02:00:00Z" }
 ], "total": 1 }
 ```
@@ -280,6 +282,7 @@ Records a buy or sell the user made, exactly as the trade form on the website do
 | `add_to_watchlist` | no | `true`: for a buy of a stock not on the watchlist, add it first, as `POST /watchlist` does. Default `false`. |
 | `external_id` | no | The client's own id for the trade, such as the broker's order number: 1 to 100 characters. See below. |
 | `fees` | no | What the broker charged for this trade, zero or more, in its currency. Without it, estimated from the user's settings. |
+| `exit_mode` | buy only | `strategy`, `levels_only` or `external`: how the holding's exits are watched from now on. See `PATCH /positions/{ticker}`. |
 
 - **Fees**: `fees` is what the broker charged, zero or more, in the trade's currency; it moves cash and is kept. Without it, the fee is worked out from the user's own trading-cost settings for that market. The response returns the fee and `fees_source`. See [Cost, fees and P&L](#cost-fees-and-pl).
 - **`trigger`** says why the user bought. The journal's **By rules** (按规则操作) vs **By gut feel** (凭直觉操作) comparison is built on it.
@@ -297,6 +300,7 @@ Records a buy or sell the user made, exactly as the trade form on the website do
 - **Selling** closes the oldest open journal entries first (FIFO) with `close_reason`, or with `other`, and puts `lesson` on them; selling to zero closes them all. If the answer lists `close_reason` and `lesson` under `ignored`, with a `journal_note`, they were not kept.
 - **Selling more** than was held on `traded_at` gives 409 `oversell`. A sale of a stock not on the watchlist gives 409 `not_on_watchlist`, or with `add_to_watchlist: true`, 409 `oversell`: nothing is held.
 - **With `add_to_watchlist`**, the stock is added only once the rest of the request is valid. The answer then has `"added_to_watchlist": true`; a stock the quote source does not know gives 404 `unknown_ticker`, and a full watchlist 403 `limit`.
+- **`exit_mode`** is set on the holding once the buy is recorded, and the answer repeats it. If it could not be set, the buy still stands: the answer lists `exit_mode` under `ignored`, with `exit_mode_error`; set it with `PATCH /positions/{ticker}`. An unknown value, or `exit_mode` on a sale, gives 400 and records nothing; so does 503 `not_available` while exit modes are not available yet.
 - **`external_id`** guards against recording a trade twice. It is unique per user and market.
   - Sent again, the same id records nothing and answers 409 `exists`, with the trade already recorded under it beside the error: `{ "error": { … }, "trade": { "id": "…", … } }`. That is so whatever else the request says.
   - So a request that timed out can be sent again as it was. Two requests at once with the same id record one trade.
@@ -364,12 +368,18 @@ Answers 200:
 
 ### PATCH /positions/{ticker}
 
-Body: `{ "stop": 350, "target": 450 }`. Send either field or both; `null` clears it.
+Body: `{ "stop": 350, "target": 450 }`, `{ "exit_mode": "levels_only" }`, or both. Send any of the three fields; `null` clears a stop or target.
 
 - Changes the stop and target in force on every open journal entry of the stock. The entry plan (`entry_stop`, `entry_target`) is never changed.
 - Each change of the stop is added to `stop_history` (see `GET /watchlist`).
-- No open position gives 404 `no_open_position`.
-- Answers `{ ticker, market, stop, target }`.
+- `exit_mode` says how the holding's exits are watched:
+  - `strategy`, the default: the strategy's exit and trim rules, and the stop and target, as for every holding;
+  - `levels_only`: only the stop and target. The strategy sends no exit or trim signals for this holding;
+  - `external`: managed elsewhere, such as by a broker's trailing stop. No exit or trim signals, and no alerts on the stop and target, which stay on the position.
+
+  Add signals are not affected by any of them. The mode belongs to the holding: it needs no journal entry, and goes back to `strategy` once the holding is sold out. Signals already recorded stay as they are.
+- Every field is checked before anything changes. No open position gives 404 `no_open_position`; an unknown `exit_mode` gives 400; 503 `not_available` means exit modes are not available yet, and nothing changed.
+- Answers `{ ticker, market, stop, target }`, and `exit_mode` when it was sent.
 
 ### GET /alerts
 
@@ -467,10 +477,10 @@ Any request can also give 401, 403 `pro_required`, 429 and 500. Besides those:
 | `DELETE /watchlist/{ticker}` | 400, 403 `scope`, 404 `not_on_watchlist`, 409 `holding` |
 | `GET /signals` | 400 `bad_request` |
 | `GET /trades` | 400 `bad_request` or `bad_ticker` |
-| `POST /trades` | 400, 403 `scope` or `limit`, 404 `unknown_ticker`, 409 `exists`, `not_on_watchlist` or `oversell`, 422 `no_recent_signal` |
+| `POST /trades` | 400, 403 `scope` or `limit`, 404 `unknown_ticker`, 409 `exists`, `not_on_watchlist` or `oversell`, 422 `no_recent_signal`, 503 `not_available` |
 | `PATCH /trades/{id}` | 400, 403 `scope`, 404 `trade_not_found`, 409 `oversell` |
 | `DELETE /trades/{id}` | 400, 403 `scope`, 404 `trade_not_found`, 409 `oversell` |
-| `PATCH /positions/{ticker}` | 400, 403 `scope`, 404 `no_open_position` |
+| `PATCH /positions/{ticker}` | 400, 403 `scope`, 404 `no_open_position`, 503 `not_available` |
 | `GET /alerts` | 400 `bad_request` |
 | `POST /alerts` | 400, 403 `scope` or `limit`, 409 `exists` |
 | `GET /account` | none |
