@@ -108,7 +108,7 @@ The MCP tools map one to one onto the REST endpoints below:
 | `set_stop_target` | `PATCH /positions/{ticker}` |
 | `create_price_alert` | `POST /alerts` |
 
-Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`) are REST only for now, and so is a holding's `exit_mode`.
+Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`) and changing or deleting a price alert (`PATCH`/`DELETE /alerts/{id}`) are REST only for now, and so is a holding's `exit_mode`.
 
 Tool arguments use the same names as the REST fields. In MCP, `types` for `get_signals` is a list. Tool errors come back as a result marked as an error, with the message described under "Errors" below.
 
@@ -410,6 +410,24 @@ Body: `{ "market": "us", "ticker": "AAPL", "direction": "below", "threshold": 21
 - At most 500 alerts per account (403 `limit`).
 - Answers 201 with `{ id, ticker, market, direction, threshold, note }`.
 
+### PATCH /alerts/{id}
+
+Body: any of `{ "threshold": 205, "note": "…", "rearm": true }`. The id comes from `GET /alerts` or `POST /alerts`.
+
+- `threshold` is a new level; `note` a new note, `null` or `""` to clear it; `rearm: true` watches a fired alert again, as the website's **Re-arm** (重新启用) does. Without any of them, 400.
+- A new level or a re-arm starts the watch over: only prices after it count. A price already past the level fires on the next scan. A fired alert given a new level stays fired until it is re-armed.
+- Known issue: an alert keeps one fired record per trading day. If it already fired today, a second crossing on the same day after a re-arm or a new level records no signal and sends no email, and the alert shows as fired again.
+- An alert on the plan's stop or target (`from_plan: true`) can only be re-armed: a new level or note gives 409 `from_plan`. Change the level with `PATCH /positions/{ticker}`.
+- A level that matches another active alert on the same ticker and direction gives 409 `exists`, and so does re-arming an alert whose level another active alert now has.
+- Answers 200 with `{ "alert": { … } }`, as `GET /alerts` lists it. Sending only `rearm: true` for one that has not fired changes nothing and adds `"unchanged": true`.
+
+### DELETE /alerts/{id}
+
+Deletes one of the user's alerts, as the website does. Its fired signals stay in `GET /signals`, with `alert.id` null.
+
+- An alert on the plan's stop or target gives 409 `from_plan`: clear the stop or target with `PATCH /positions/{ticker}` instead.
+- Answers 200 with `{ "deleted": true, "alert": { … } }`, the alert as it was.
+
 ### GET /account
 
 The cash the user tracks in each market, in that market's currency. `amount` is `null` where cash is not tracked; trades then move no cash there.
@@ -464,7 +482,9 @@ The `message` is written for the user; pass it on.
 | 404 | `no_open_position` | Setting levels on a stock that is not held. |
 | 404 | `trade_not_found` | No trade of this user has that id. |
 | 404 | `dividend_not_found` | No dividend of this user has that id. |
+| 404 | `alert_not_found` | No price alert of this user has that id. |
 | 409 | `exists` | Already on the watchlist, the same alert already exists, or a trade is already recorded with that `external_id` (the body also has the `trade`). |
+| 409 | `from_plan` | Changing or deleting the alert on a plan's stop or target; change the plan with `PATCH /positions/{ticker}`. |
 | 409 | `holding` | Removing a stock that is still held. |
 | 409 | `not_on_watchlist` | Recording a trade in a stock that is not on the watchlist. |
 | 409 | `oversell` | Selling more than was held on that date; or a correction or deletion that would leave a sale of shares not held. |
@@ -490,6 +510,8 @@ Any request can also give 401, 403 `pro_required`, 429 and 500. Besides those:
 | `PATCH /positions/{ticker}` | 400, 403 `scope`, 404 `no_open_position`, 503 `not_available` |
 | `GET /alerts` | 400 `bad_request` |
 | `POST /alerts` | 400, 403 `scope` or `limit`, 409 `exists` |
+| `PATCH /alerts/{id}` | 400, 403 `scope`, 404 `alert_not_found`, 409 `from_plan` or `exists` |
+| `DELETE /alerts/{id}` | 400, 403 `scope`, 404 `alert_not_found`, 409 `from_plan` |
 | `GET /account` | none |
 | `PUT /cash/{market}` | 400, 403 `scope` |
 | `GET /dividends` | 400 `bad_request` or `bad_ticker` |
