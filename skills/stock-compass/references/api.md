@@ -108,7 +108,7 @@ The MCP tools map one to one onto the REST endpoints below:
 | `set_stop_target` | `PATCH /positions/{ticker}` |
 | `create_price_alert` | `POST /alerts` |
 
-Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`), changing or deleting a price alert (`PATCH`/`DELETE /alerts/{id}`), the trade journal (`GET /journal`) and strategies (`GET /strategies`, `GET /strategies/{id}`) are REST only for now, and so is a holding's `exit_mode`.
+Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`), changing or deleting a price alert (`PATCH`/`DELETE /alerts/{id}`), the trade journal (`GET /journal`, `GET /journal/stats`) and strategies (`GET /strategies`, `GET /strategies/{id}`) are REST only for now, and so is a holding's `exit_mode`.
 
 Tool arguments use the same names as the REST fields. In MCP, `types` for `get_signals` is a list. Tool errors come back as a result marked as an error, with the message described under "Errors" below.
 
@@ -315,6 +315,24 @@ Query (all optional): `market`; `status` (`all`, the default, `open` or `closed`
       "close_reason": "rule_exit", "deviated_from_plan": false, "deviation_reason": null,
       "lesson": "…", "trade_id": "…", "source": null }
   ], "limit": 100, "offset": 0, "total": 1, "next_offset": null }
+```
+
+### GET /journal/stats
+
+The journal page's figures for one market, worked out by the same code as the page and the Monday review email, so the three agree. Query: `market` (required), by the code's own market as the Monday email counts it; `from` (optional), entries opened on or after that date, as the page's periods.
+
+- `trades` and `closed` count decisions, as the page does: a buy sold in three parts is one trade.
+- `cumulative_return_pct` is the closed entries' gain less their fees over what they cost, as the page's figure and equity curve: the fees kept with the trades, else the user's trading-cost settings (the market's default schedule when none are set). `avg_hold_trading_days` counts weekdays from open to close. Both are null with nothing closed.
+- `by_rules`, `by_gut` and `by_price_alert` are the closed trades by why they were bought (`signal`, `manual`, and a signal that was a price alert; `imported` and `other` are in neither): `count`, `wins`, `win_rate_pct` and `avg_return_pct`, price returns without fees, as the page. With no trades on a side the two rates are null.
+- `comparison.result` is the page's and the email's reading of the two averages: `insufficient` (with `needed_per_side`, each side needs that many closed trades), `close` (within 1 point), `rules_better` or `gut_better`, with `gap_pp`, the size of the difference in points (never negative: `result` says which side is ahead). It states the record; it is not advice.
+
+```json
+{ "market": "hk", "from": null, "trades": 24, "closed": 18,
+  "cumulative_return_pct": 6.42, "avg_hold_trading_days": 11.5,
+  "by_rules": { "count": 9, "wins": 6, "win_rate_pct": 66.67, "avg_return_pct": 3.1 },
+  "by_gut": { "count": 7, "wins": 3, "win_rate_pct": 42.86, "avg_return_pct": -0.8 },
+  "by_price_alert": { "count": 2, "wins": 1, "win_rate_pct": 50, "avg_return_pct": 1.2 },
+  "comparison": { "result": "rules_better", "gap_pp": 3.9 } }
 ```
 
 ### POST /trades
@@ -558,6 +576,7 @@ Any request can also give 401, 403 `pro_required`, 429 and 500. Besides those:
 | `GET /signals` | 400 `bad_request` |
 | `GET /trades` | 400 `bad_request` or `bad_ticker` |
 | `GET /journal` | 400 `bad_request` or `bad_ticker` |
+| `GET /journal/stats` | 400 `bad_request` |
 | `GET /strategies` | 400 `bad_request` |
 | `GET /strategies/{id}` | 400 `bad_request`, 404 `strategy_not_found` |
 | `POST /trades` | 400, 403 `scope` or `limit`, 404 `unknown_ticker`, 409 `exists`, `not_on_watchlist`, `out_of_order` or `oversell`, 422 `no_recent_signal`, 503 `not_available` |
