@@ -416,7 +416,7 @@ Body: any of `{ "threshold": 205, "note": "…", "rearm": true }`. The id comes 
 
 - `threshold` is a new level; `note` a new note, `null` or `""` to clear it; `rearm: true` watches a fired alert again, as the website's **Re-arm** (重新启用) does. Without any of them, 400.
 - A new level or a re-arm starts the watch over: only prices after it count. A price already past the level fires on the next scan. A fired alert given a new level stays fired until it is re-armed.
-- Known issue: an alert keeps one fired record per trading day. If it already fired today, a second crossing on the same day after a re-arm or a new level records no signal and sends no email, and the alert shows as fired again.
+- Each watch fires once: an alert that already fired today and is re-armed (with or without a new level) fires again, as a new signal, if the price crosses again the same day.
 - An alert on the plan's stop or target (`from_plan: true`) can only be re-armed: a new level or note gives 409 `from_plan`. Change the level with `PATCH /positions/{ticker}`.
 - A level that matches another active alert on the same ticker and direction gives 409 `exists`, and so does re-arming an alert whose level another active alert now has.
 - Answers 200 with `{ "alert": { … } }`, as `GET /alerts` lists it. Sending only `rearm: true` for one that has not fired changes nothing and adds `"unchanged": true`.
