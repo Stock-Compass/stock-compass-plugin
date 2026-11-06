@@ -138,7 +138,7 @@ In a path (`DELETE /watchlist/{ticker}`, `PATCH /positions/{ticker}`) the market
 
 - Dates are `YYYY-MM-DD`, in the market's own time zone: Asia/Hong_Kong, Asia/Shanghai, America/New_York.
 - `traded_at` is stored as sent. Stock Compass does not move a pre-market, after-hours or overnight fill to another day, so send the trade date the broker reports for the fill. Without `traded_at`, it is today in the market's time zone.
-- A trade has a date but no time. Trades on the same date count in the order they were recorded: that order decides the holding on the day, whether a sell is covered, and which journal entries a sale closes. Record a day's trades in the order they happened. A trade dated before the stock's later trades gives 409 `out_of_order` (see `POST /trades`).
+- A trade has a date, and a time when the client sends `executed_at` with it (`POST /trades`). Trades on one date count in the order they happened: by `executed_at`, and a trade without one at the time it was recorded, since it was made no later than that. That order decides the holding on the day, whether a sell is covered, and which journal entries a sale closes. Without times, record a day's trades in the order they happened. A trade that would come before the stock's later trades gives 409 `out_of_order` (see `POST /trades`).
 - `recorded_at` and `created_at` are UTC timestamps.
 
 ### Cost, fees and P&L
@@ -255,12 +255,12 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 
 Query: `market`, `ticker`, `from`, `to`, `external_id` (all optional); `limit` (1–500, default 100); `offset` (default 0). A `ticker` without `market` finds its market from the code: `700` is 0700.HK, `600519` is 600519.SS, `BRK.B` is BRK-B.
 
-Results are newest first. `total` is the number of trades that match; `next_offset` is null on the last page. `external_id` is null for a trade recorded without one, such as on the website. `fees` is the fee the client reported, with `fees_source: "provided"`; it is null with `"estimated"` when none was. `estimated_fees` is then the estimate from the user's trading-cost settings that the trade was recorded with, as the website's P&L counts it (for an old trade with none kept, from the current settings); it is null when a fee was reported.
+Results are newest first: by date, and within a date by when they were recorded. `executed_at` is the time the trade was executed when the client sent one, otherwise null; it is UTC, written `…+00:00` here and `…Z` in the answer to `POST /trades`. `total` is the number of trades that match; `next_offset` is null on the last page. `external_id` is null for a trade recorded without one, such as on the website. `fees` is the fee the client reported, with `fees_source: "provided"`; it is null with `"estimated"` when none was. `estimated_fees` is then the estimate from the user's trading-cost settings that the trade was recorded with, as the website's P&L counts it (for an old trade with none kept, from the current settings); it is null when a fee was reported.
 
 ```json
 { "trades": [
     { "id": "…", "ticker": "0700.HK", "market": "hk", "type": "buy", "price": 382.4,
-      "quantity": 200, "traded_at": "2026-10-23", "recorded_at": "2026-10-23T03:00:00Z",
+      "quantity": 200, "traded_at": "2026-10-23", "executed_at": "2026-10-23T01:42:10+00:00", "recorded_at": "2026-10-23T03:00:00Z",
       "external_id": "FUTU-8231", "fees": 3.86, "fees_source": "provided", "estimated_fees": null }
   ], "limit": 100, "offset": 0, "total": 1, "next_offset": null }
 ```
@@ -275,7 +275,8 @@ Records a buy or sell the user made, exactly as the trade form on the website do
 | `type` | yes | `buy` or `sell`. |
 | `price` | yes | Per share, without fees. |
 | `quantity` | yes | Whole shares. |
-| `traded_at` | no | The trade date in that market. Defaults to today there; cannot be in the future. |
+| `traded_at` | no | The trade date in that market. Defaults to the date of `executed_at` in the market, else today there; cannot be in the future. |
+| `executed_at` | no | When the trade was executed: a time with its offset, such as `2026-11-06T09:31:05+08:00` or `…Z`. It must fall on `traded_at` in the market's time zone and not in the future. It orders the trade within its date. See below. |
 | `trigger` | buy only | `signal`, `manual` or `other`. See below. |
 | `stop`, `target` | buy only | The planned stop and target. |
 | `thesis` | buy only | Up to 1000 characters. |
@@ -309,8 +310,9 @@ Records a buy or sell the user made, exactly as the trade form on the website do
   - So a request that timed out can be sent again as it was. Two requests at once with the same id record one trade.
   - Once that trade is deleted, the id is free again.
   - Without `external_id`, sending the same trade twice records it twice.
-- **Same-day order**: trades on one date count in the order they are recorded. See [Dates and times](#dates-and-times).
-- **Out of order**: trades count in date order, so a trade dated before trades already recorded for the stock changes what was worked out for them. When it would, the request gives 409 `out_of_order` and records nothing: a buy dated before a later sale, or a sale dated before any later trade. A buy before later buys only is recorded, since buys add up the same in any order. The error lists the later trades in `later_trades` (up to 20, oldest first; `more_later_trades` is true when there are more). Send trades oldest first; to record one anyway, such as a missed trade, send it again with `allow_out_of_order: true`. Within one date the order cannot be checked, nor between two requests for the same stock sent at once: send a stock's trades one after another. MCP's `record_trade` does not check this yet. Moving a trade's date with `PATCH /trades/{id}` is not checked either.
+- **Same-day order**: trades on one date count by `executed_at`, and a trade without one at the time it was recorded. A trade entered on the website has no time, so it counts when it was entered: a client that sends times should leave the website's trades of that day alone, or a timed sale may count before a buy entered later on the website. See [Dates and times](#dates-and-times).
+- **Out of order**: trades count in date order, so a trade dated before trades already recorded for the stock changes what was worked out for them. When it would, the request gives 409 `out_of_order` and records nothing: a buy dated before a later sale, or a sale dated before any later trade. A buy before later buys only is recorded, since buys add up the same in any order. The error lists the later trades in `later_trades` (up to 20, oldest first; `more_later_trades` is true when there are more). Send trades oldest first; to record one anyway, such as a missed trade, send it again with `allow_out_of_order: true`. Within one date it is checked when the trade has `executed_at`: a trade with an earlier time than the date's trades already recorded counts before them, so a buy at 09:30 sent after a sale at 10:00 gives `out_of_order`. A trade without a time counts after the date's trades already recorded, and is not checked within its date. Two requests for the same stock sent at once are not checked against each other: send a stock's trades one after another. MCP's `record_trade` does not check this yet. Moving a trade's date with `PATCH /trades/{id}` is not checked either, and drops its `executed_at`, which belonged to the old date.
+- **`executed_at`** is kept with the trade and returned by `GET /trades` and in this answer. Before it is available a request with it gives 503 `not_available` and records nothing; without it the request works as before. MCP's `record_trade` does not take it, and the tools do not show it, while the ChatGPT review runs.
 
 Answers 201:
 
@@ -466,7 +468,7 @@ The `message` is written for the user; pass it on.
 | 409 | `holding` | Removing a stock that is still held. |
 | 409 | `not_on_watchlist` | Recording a trade in a stock that is not on the watchlist. |
 | 409 | `oversell` | Selling more than was held on that date; or a correction or deletion that would leave a sale of shares not held. |
-| 409 | `out_of_order` | Recording a trade dated before the stock's later trades, when it would change them (the body also has `later_trades`). |
+| 409 | `out_of_order` | Recording a trade that comes before the stock's later trades (by date, or by `executed_at` within a date), when it would change them (the body also has `later_trades`). |
 | 422 | `no_recent_signal` | `trigger: signal` with no recent signal. |
 | 429 | `rate_limited` | More than 60 requests in a minute; retry after 60 seconds. |
 | 500 | `internal` | Something went wrong on the server. Try again later. |
