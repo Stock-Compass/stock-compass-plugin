@@ -225,7 +225,7 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 - Buy and add wait for that bar to be final: they are recorded by the next trading day's 09:00 scan, in that market's time, so a Friday's appear on Monday. Exit and trim are recorded during the session, at the price when the scan ran.
 - `days` counts back from the market's own date (for all markets, the earliest of them), not from UTC's.
 - `strategy` and `strategy_id` name the strategy that fired.
-- Why it fired: a strategy signal has `indicators`, the indicator values when it was recorded (which condition held is not recorded); MCP's `get_signals` leaves them out. A price-alert signal has `alert`: the alert's `id`, `threshold`, `direction` and `note`, `plan` (`stop` or `target` when the alert is the plan's stop or target from the journal, otherwise `null`, also when the alert has been deleted since), and `touched` (the bar's low or high that crossed the level, and its date, when it was a bar and not the price at the scan).
+- Why it fired: a strategy signal has `indicators`, a fixed set of indicator values when it was recorded, and `matched_conditions`, the rule's conditions that held. Each has `indicator`, `operator`, `threshold` (a number, a text, or the list of `IN` / `NOT IN`) and the `value` at the time (`null` if it was not a finite number); an old indicator name reads as its current one. They are the conditions that made the rule fire: every condition of an AND group, the first that held of an OR group, and with groups joined by OR, those of the first group that held. `matched_conditions` is `null` on signals recorded before it was added (November 2026). MCP's `get_signals` leaves out both. A price-alert signal has `alert`: the alert's `id`, `threshold`, `direction` and `note`, `plan` (`stop` or `target` when the alert is the plan's stop or target from the journal, otherwise `null`, also when the alert has been deleted since), and `touched` (the bar's low or high that crossed the level, and its date, when it was a bar and not the price at the scan).
 - The answer gives the window's `from`, and `to` when one was sent.
 
 **Runs.** A rule that stays true is recorded again on every bar: an exit rule that holds for a week gives five exit signals. Signals of one strategy, ticker and type on consecutive scanned bars form one run.
@@ -241,7 +241,8 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
     { "id": 123, "ticker": "ANF", "market": "us", "type": "exit", "date": "2026-10-23",
       "price": 97.2, "strategy": "Trend", "strategy_id": "…", "recorded_at": "2026-10-23T17:05:00Z",
       "active_since": "2026-10-19", "occurrences": 5,
-      "indicators": { "rsi_14": 71.2, "today_change_pct": 3.4, "price_vs_ma20": 8.1 } },
+      "indicators": { "rsi_14": 71.2, "today_change_pct": 3.4, "price_vs_ma20": 8.1 },
+      "matched_conditions": [ { "indicator": "rsi", "operator": ">", "threshold": 70, "value": 71.2 } ] },
     { "id": 124, "ticker": "AAPL", "market": "us", "type": "price_alert", "date": "2026-10-23",
       "price": 226.4, "strategy": null, "strategy_id": null, "recorded_at": "2026-10-23T15:05:00Z",
       "active_since": "2026-10-23", "occurrences": 1,
