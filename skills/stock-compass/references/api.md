@@ -138,7 +138,7 @@ In a path (`DELETE /watchlist/{ticker}`, `PATCH /positions/{ticker}`) the market
 
 - Dates are `YYYY-MM-DD`, in the market's own time zone: Asia/Hong_Kong, Asia/Shanghai, America/New_York.
 - `traded_at` is stored as sent. Stock Compass does not move a pre-market, after-hours or overnight fill to another day, so send the trade date the broker reports for the fill. Without `traded_at`, it is today in the market's time zone.
-- A trade has a date but no time. Trades on the same date count in the order they were recorded: that order decides the holding on the day, whether a sell is covered, and which journal entries a sale closes. Record a day's trades in the order they happened.
+- A trade has a date but no time. Trades on the same date count in the order they were recorded: that order decides the holding on the day, whether a sell is covered, and which journal entries a sale closes. Record a day's trades in the order they happened. A trade dated before the stock's later trades gives 409 `out_of_order` (see `POST /trades`).
 - `recorded_at` and `created_at` are UTC timestamps.
 
 ### Cost, fees and P&L
@@ -285,6 +285,7 @@ Records a buy or sell the user made, exactly as the trade form on the website do
 | `external_id` | no | The client's own id for the trade, such as the broker's order number: 1 to 100 characters. See below. |
 | `fees` | no | What the broker charged for this trade, zero or more, in its currency. Without it, estimated from the user's settings. |
 | `exit_mode` | buy only | `strategy`, `levels_only` or `external`: how the holding's exits are watched from now on. See `PATCH /positions/{ticker}`. |
+| `allow_out_of_order` | no | `true`: record a trade dated before trades already recorded for the stock, even though it changes them. See below. Default `false`. |
 
 - **Fees**: `fees` is what the broker charged, zero or more, in the trade's currency; it moves cash and is kept. Without it, the fee is worked out from the user's own trading-cost settings for that market. The response returns the fee and `fees_source`. See [Cost, fees and P&L](#cost-fees-and-pl).
 - **`trigger`** says why the user bought. The journal's **By rules** (按规则操作) vs **By gut feel** (凭直觉操作) comparison is built on it.
@@ -309,6 +310,7 @@ Records a buy or sell the user made, exactly as the trade form on the website do
   - Once that trade is deleted, the id is free again.
   - Without `external_id`, sending the same trade twice records it twice.
 - **Same-day order**: trades on one date count in the order they are recorded. See [Dates and times](#dates-and-times).
+- **Out of order**: trades count in date order, so a trade dated before trades already recorded for the stock changes what was worked out for them. When it would, the request gives 409 `out_of_order` and records nothing: a buy dated before a later sale, or a sale dated before any later trade. A buy before later buys only is recorded, since buys add up the same in any order. The error lists the later trades in `later_trades` (up to 20, oldest first; `more_later_trades` is true when there are more). Send trades oldest first; to record one anyway, such as a missed trade, send it again with `allow_out_of_order: true`. Within one date the order cannot be checked, nor between two requests for the same stock sent at once: send a stock's trades one after another. MCP's `record_trade` does not check this yet. Moving a trade's date with `PATCH /trades/{id}` is not checked either.
 
 Answers 201:
 
@@ -464,6 +466,7 @@ The `message` is written for the user; pass it on.
 | 409 | `holding` | Removing a stock that is still held. |
 | 409 | `not_on_watchlist` | Recording a trade in a stock that is not on the watchlist. |
 | 409 | `oversell` | Selling more than was held on that date; or a correction or deletion that would leave a sale of shares not held. |
+| 409 | `out_of_order` | Recording a trade dated before the stock's later trades, when it would change them (the body also has `later_trades`). |
 | 422 | `no_recent_signal` | `trigger: signal` with no recent signal. |
 | 429 | `rate_limited` | More than 60 requests in a minute; retry after 60 seconds. |
 | 500 | `internal` | Something went wrong on the server. Try again later. |
@@ -479,7 +482,7 @@ Any request can also give 401, 403 `pro_required`, 429 and 500. Besides those:
 | `DELETE /watchlist/{ticker}` | 400, 403 `scope`, 404 `not_on_watchlist`, 409 `holding` |
 | `GET /signals` | 400 `bad_request` |
 | `GET /trades` | 400 `bad_request` or `bad_ticker` |
-| `POST /trades` | 400, 403 `scope` or `limit`, 404 `unknown_ticker`, 409 `exists`, `not_on_watchlist` or `oversell`, 422 `no_recent_signal`, 503 `not_available` |
+| `POST /trades` | 400, 403 `scope` or `limit`, 404 `unknown_ticker`, 409 `exists`, `not_on_watchlist`, `out_of_order` or `oversell`, 422 `no_recent_signal`, 503 `not_available` |
 | `PATCH /trades/{id}` | 400, 403 `scope`, 404 `trade_not_found`, 409 `oversell` |
 | `DELETE /trades/{id}` | 400, 403 `scope`, 404 `trade_not_found`, 409 `oversell` |
 | `PATCH /positions/{ticker}` | 400, 403 `scope`, 404 `no_open_position`, 503 `not_available` |
