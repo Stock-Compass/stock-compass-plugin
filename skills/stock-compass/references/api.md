@@ -108,7 +108,7 @@ The MCP tools map one to one onto the REST endpoints below:
 | `set_stop_target` | `PATCH /positions/{ticker}` |
 | `create_price_alert` | `POST /alerts` |
 
-Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`), changing or deleting a price alert (`PATCH`/`DELETE /alerts/{id}`) and the trade journal (`GET /journal`) are REST only for now, and so is a holding's `exit_mode`.
+Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`), changing or deleting a price alert (`PATCH`/`DELETE /alerts/{id}`), the trade journal (`GET /journal`) and strategies (`GET /strategies`, `GET /strategies/{id}`) are REST only for now, and so is a holding's `exit_mode`.
 
 Tool arguments use the same names as the REST fields. In MCP, `types` for `get_signals` is a list. Tool errors come back as a result marked as an error, with the message described under "Errors" below.
 
@@ -224,7 +224,7 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 - `date` is the daily bar the signal was computed on, in the market's time zone. `recorded_at` is when the scan wrote it (UTC).
 - Buy and add wait for that bar to be final: they are recorded by the next trading day's 09:00 scan, in that market's time, so a Friday's appear on Monday. Exit and trim are recorded during the session, at the price when the scan ran.
 - `days` counts back from the market's own date (for all markets, the earliest of them), not from UTC's.
-- `strategy` and `strategy_id` name the strategy that fired.
+- `strategy` and `strategy_id` name the strategy that fired; `GET /strategies/{strategy_id}` gives its rules.
 - Why it fired: a strategy signal has `indicators`, a fixed set of indicator values when it was recorded, and `matched_conditions`, the rule's conditions that held. Each has `indicator`, `operator`, `threshold` (a number, a text, or the list of `IN` / `NOT IN`) and the `value` at the time (`null` if it was not a finite number); an old indicator name reads as its current one. They are the conditions that made the rule fire: every condition of an AND group, the first that held of an OR group, and with groups joined by OR, those of the first group that held. `matched_conditions` is `null` on signals recorded before it was added (November 2026). MCP's `get_signals` leaves out both. A price-alert signal has `alert`: the alert's `id`, `threshold`, `direction` and `note`, `plan` (`stop` or `target` when the alert is the plan's stop or target from the journal, otherwise `null`, also when the alert has been deleted since), and `touched` (the bar's low or high that crossed the level, and its date, when it was a bar and not the price at the scan).
 - The answer gives the window's `from`, and `to` when one was sent.
 
@@ -263,6 +263,31 @@ Results are newest first: by date, and within a date by when they were recorded.
       "quantity": 200, "traded_at": "2026-10-23", "executed_at": "2026-10-23T01:42:10+00:00", "recorded_at": "2026-10-23T03:00:00Z",
       "external_id": "FUTU-8231", "fees": 3.86, "fees_source": "provided", "estimated_fees": null }
   ], "limit": 100, "offset": 0, "total": 1, "next_offset": null }
+```
+
+### GET /strategies
+
+The user's own strategies, as the website's Strategies page lists them. Query: `market` (optional).
+
+- `active` is the strategy in use in its market now. `GET /signals` returns each date's signals from the strategy that was in use on that date, so older signals can come from another one.
+- `rules_changed_at` is when its rules last changed.
+- Answers `{ "strategies": [ { "id", "name", "description", "market", "active", "rules_changed_at", "created_at", "updated_at" } ], "total", "next_offset": null }`.
+
+### GET /strategies/{id}
+
+One strategy with its rules as they are now, so a signal's `strategy_id` leads to its strategy. A deleted strategy is still found, with `deleted_at` set, since its old signals name it. A signal recorded before `rules_changed_at` may have fired on earlier rules; its `matched_conditions` are what held then.
+
+- `rules` has the four sections, `buy`, `add`, `trim` and `exit`, as the signal engine reads them: `outer_op` joins the `groups` (`OR`: any group; `AND`: all), and each group's `inner_op` joins its `conditions`. Each condition has `indicator` (an old indicator name reads as today's, as in `matched_conditions`), `operator`, `value` and `text`, its words in English and Chinese as the page's **View** shows them. A section without conditions has no groups; a group without conditions never holds, so in an `AND` section it keeps the whole section from firing.
+- `export` is in the shape of the page's **Export JSON** (`name`, `description`, `market`, `rules`), with the same rules written out in full (every section as `{ "v": 2, "outerOp", "groups" }`, numbers as numbers, today's indicator names and sector codes), so the page's **Import** takes it as it is. A strategy with no buy conditions will not import: the page requires them.
+- Another user's strategy gives 404 `strategy_not_found`. Creating and changing strategies through the API is not offered.
+
+```json
+{ "strategy": { "id": "…", "name": "Trend", "market": "us", "active": true, "deleted_at": null, … },
+  "rules": {
+    "buy": { "outer_op": "OR", "groups": [ { "inner_op": "AND", "conditions": [
+      { "indicator": "rsi", "operator": "<", "value": 30, "text": { "en": "RSI(14) < 30", "zh": "RSI(14) < 30" } } ] } ] },
+    "add": { "outer_op": "OR", "groups": [] }, "trim": { … }, "exit": { … } },
+  "export": { "name": "Trend", "description": "…", "market": "us", "rules": { … } } }
 ```
 
 ### GET /journal
@@ -510,6 +535,7 @@ The `message` is written for the user; pass it on.
 | 404 | `trade_not_found` | No trade of this user has that id. |
 | 404 | `dividend_not_found` | No dividend of this user has that id. |
 | 404 | `alert_not_found` | No price alert of this user has that id. |
+| 404 | `strategy_not_found` | No strategy of this user has that id. |
 | 409 | `exists` | Already on the watchlist, the same alert already exists, or a trade is already recorded with that `external_id` (the body also has the `trade`). |
 | 409 | `from_plan` | Changing or deleting the alert on a plan's stop or target; change the plan with `PATCH /positions/{ticker}`. |
 | 409 | `holding` | Removing a stock that is still held. |
@@ -532,6 +558,8 @@ Any request can also give 401, 403 `pro_required`, 429 and 500. Besides those:
 | `GET /signals` | 400 `bad_request` |
 | `GET /trades` | 400 `bad_request` or `bad_ticker` |
 | `GET /journal` | 400 `bad_request` or `bad_ticker` |
+| `GET /strategies` | 400 `bad_request` |
+| `GET /strategies/{id}` | 400 `bad_request`, 404 `strategy_not_found` |
 | `POST /trades` | 400, 403 `scope` or `limit`, 404 `unknown_ticker`, 409 `exists`, `not_on_watchlist`, `out_of_order` or `oversell`, 422 `no_recent_signal`, 503 `not_available` |
 | `PATCH /trades/{id}` | 400, 403 `scope`, 404 `trade_not_found`, 409 `oversell` |
 | `DELETE /trades/{id}` | 400, 403 `scope`, 404 `trade_not_found`, 409 `oversell` |
