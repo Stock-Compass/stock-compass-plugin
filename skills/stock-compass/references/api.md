@@ -108,7 +108,7 @@ The MCP tools map one to one onto the REST endpoints below:
 | `set_stop_target` | `PATCH /positions/{ticker}` |
 | `create_price_alert` | `POST /alerts` |
 
-Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`) and changing or deleting a price alert (`PATCH`/`DELETE /alerts/{id}`) are REST only for now, and so is a holding's `exit_mode`.
+Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`), changing or deleting a price alert (`PATCH`/`DELETE /alerts/{id}`) and the trade journal (`GET /journal`) are REST only for now, and so is a holding's `exit_mode`.
 
 Tool arguments use the same names as the REST fields. In MCP, `types` for `get_signals` is a list. Tool errors come back as a result marked as an error, with the message described under "Errors" below.
 
@@ -262,6 +262,33 @@ Results are newest first: by date, and within a date by when they were recorded.
     { "id": "…", "ticker": "0700.HK", "market": "hk", "type": "buy", "price": 382.4,
       "quantity": 200, "traded_at": "2026-10-23", "executed_at": "2026-10-23T01:42:10+00:00", "recorded_at": "2026-10-23T03:00:00Z",
       "external_id": "FUTU-8231", "fees": 3.86, "fees_source": "provided", "estimated_fees": null }
+  ], "limit": 100, "offset": 0, "total": 1, "next_offset": null }
+```
+
+### GET /journal
+
+The trade journal, as the website's journal page lists it: one entry per position opened, newest opened first. A partial sale closes part of an entry as an entry of its own.
+
+Query (all optional): `market`; `status` (`all`, the default, `open` or `closed`); `ticker`; `from` and `to`, dates the entry was opened; `trigger` (`signal`, `price_alert`, `manual`, `imported` or `other`); `limit` (1–500, default 100) and `offset` (default 0).
+
+`total` counts entries, as the journal page's list shows them: a buy sold in three parts is four. The page's own trade counts group those into one.
+
+- `market` is the code's own market (`.HK`, `.SS`/`.SZ`, none for US), so an entry still counts after its stock left the watchlist.
+- `trigger.type` is why the stock was bought: `signal` on a strategy signal (with its `signal_id`, `strategy_id` and `strategy` name), `price_alert` on one of the user's price alerts, `manual` the user's own decision, `imported` a holding from before the journal, logged from the journal page's banner, `other` none of these. The journal's **By rules** (按规则操作) side is `signal` only, **By gut feel** (凭直觉操作) `manual` only.
+- `plan` is the stop and target written when the position was opened; `levels` are the ones in force now (null when cleared since); `stop_history` every stop change, oldest first. The closed part of a partial sale is a new entry that keeps only the plan: its `levels` are the plan's, its `stop_history` is empty and its `trade_id` null.
+- `realized_return_pct` is the closed entry's price return, without fees, as the journal page shows it; null while open. `close_reason`, `deviated_from_plan`, `deviation_reason` and `lesson` come from the website's **Close position** (平仓) form; a sale through `POST /trades` sets `close_reason` and `lesson` only.
+- `trade_id` is the buy the entry was logged for, when known (`GET /trades`). `source` is `sample` for invented entries that an earlier **load sample data** button wrote into some older accounts (the execution record leaves them out), otherwise usually null.
+
+```json
+{ "entries": [
+    { "id": 812, "ticker": "0700.HK", "market": "hk", "status": "closed",
+      "opened_at": "2026-10-01", "open_price": 380, "shares": 100,
+      "closed_at": "2026-10-20", "close_price": 399, "realized_return_pct": 5,
+      "trigger": { "type": "signal", "signal_id": 7, "strategy_id": "…", "strategy": "Trend" },
+      "thesis": "…", "plan": { "stop": 350, "target": 450 }, "levels": { "stop": 360, "target": 450 },
+      "stop_history": [ { "at": "2026-10-06T01:00:00Z", "from": 350, "to": 360 } ],
+      "close_reason": "rule_exit", "deviated_from_plan": false, "deviation_reason": null,
+      "lesson": "…", "trade_id": "…", "source": null }
   ], "limit": 100, "offset": 0, "total": 1, "next_offset": null }
 ```
 
@@ -504,6 +531,7 @@ Any request can also give 401, 403 `pro_required`, 429 and 500. Besides those:
 | `DELETE /watchlist/{ticker}` | 400, 403 `scope`, 404 `not_on_watchlist`, 409 `holding` |
 | `GET /signals` | 400 `bad_request` |
 | `GET /trades` | 400 `bad_request` or `bad_ticker` |
+| `GET /journal` | 400 `bad_request` or `bad_ticker` |
 | `POST /trades` | 400, 403 `scope` or `limit`, 404 `unknown_ticker`, 409 `exists`, `not_on_watchlist`, `out_of_order` or `oversell`, 422 `no_recent_signal`, 503 `not_available` |
 | `PATCH /trades/{id}` | 400, 403 `scope`, 404 `trade_not_found`, 409 `oversell` |
 | `DELETE /trades/{id}` | 400, 403 `scope`, 404 `trade_not_found`, 409 `oversell` |
