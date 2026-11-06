@@ -55,6 +55,7 @@ Recording a trade through either one writes it into Stock Compass. Neither ever 
 - When creating a key, the user gives it a name (up to 60 characters) and picks an expiry: 30 days, 90 days, 1 year, or never. Writes are allowed only if **Allow writes** (允许写入) is ticked.
 - A user can have at most 5 active keys. Revoking a key takes effect at once.
 - In the last 14 days before a key expires, every REST answer carries an `X-API-Key-Expires-At` header (an ISO time). `GET /me` gives the key's and the plan's end dates. A revoked or expired key gets 401 `key_revoked` or `key_expired`.
+- A key with an end date that was used in the last 30 days also gets a reminder to the account's email address 7 days before it expires, and a last one in its final 24 hours (weekends not counted, so a key ending on a weekend gets it before the weekend). These are account emails: the user can turn them off in the app's email settings.
 - Send the key as a header on every request: `Authorization: Bearer sc_…`.
 - Treat a key as a password. Keep it in the agent's or the script's own secret settings, never in a conversation, a shared file or a repository. If it leaks, revoke it.
 
