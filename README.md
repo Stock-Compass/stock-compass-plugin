@@ -2,6 +2,8 @@
 
 <p align="center"><b>English</b> · <a href="README.zh-CN.md">简体中文</a></p>
 
+<p align="center"><a href="https://mcptry.com/servers/io.github.Stock-Compass/stock-compass"><img src="https://mcptry.com/badge/io.github.Stock-Compass/stock-compass" alt="mcptry status and score"></a></p>
+
 # Stock Compass for AI apps
 
 Use your [Stock Compass](https://stock-compass.app) records from any AI app or agent. You can ask about your watchlist, holdings, signals, trades and journal; have it record, correct or delete a trade, change a stop or target, or set a price alert; or get help writing a strategy and reading a backtest. It covers Hong Kong, US and China A-shares.

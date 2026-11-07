@@ -2,6 +2,8 @@
 
 <p align="center"><a href="README.md">English</a> · <b>简体中文</b></p>
 
+<p align="center"><a href="https://mcptry.com/servers/io.github.Stock-Compass/stock-compass"><img src="https://mcptry.com/badge/io.github.Stock-Compass/stock-compass" alt="mcptry 状态和评分"></a></p>
+
 # 在 AI 应用里使用 Stock Compass
 
 在任何 AI 应用或 agent 里使用你的 [Stock Compass](https://stock-compass.app) 记录，支持港股、美股和 A 股。你可以：
