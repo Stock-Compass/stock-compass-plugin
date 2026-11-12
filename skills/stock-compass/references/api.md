@@ -187,7 +187,7 @@ Query, all optional:
 `stop` and `target` are the ones in force on the open position; they are null when the stock is not held. A holding also has:
 - `opened_at`: the date of the oldest open journal entry, when the position was opened;
 - `journal_entry_id`, `entry_stop`, `entry_target`: the latest buy's journal entry, whose levels are in force, with the stop and target set when it was bought;
-- `stop_history`: every change of that entry's stop since, oldest first, from any source (website, API or app). `from` or `to` is null when there was no stop. Target changes are not kept;
+- `stop_history` and `target_history`: every change of that entry's stop, and of its target, oldest first, from any source. `from` or `to` is null when there was none. Each change has `source`: `web` (the website), `api` (the REST API) or `mcp` (an app over MCP); null for changes from before 12 November 2026, and target changes are kept only from then. A confirmed split rescales the levels without adding a change;
 - `exit_mode`: how the holding's exits are watched, `strategy`, `levels_only` or `external` (see `PATCH /positions/{ticker}`);
 - `target_reached_at` and `stop_breached_at`: when the price reached the target, or went through the stop, in force, from the alert the website keeps on it (`from_plan` in `GET /alerts`); null while it has not, and while there is no target or stop. A new level, or re-arming its alert, starts over. With `exit_mode: external` the levels have no alerts, so both stay null.
 
@@ -196,8 +196,9 @@ Query, all optional:
   { "ticker": "0700.HK", "market": "hk", "name": "TENCENT", "name_zh": "腾讯控股",
     "holding": true, "quantity": 200, "cost_price": 382.4, "stop": 365, "target": 450,
     "opened_at": "2026-10-02", "journal_entry_id": 42, "entry_stop": 350, "entry_target": 450,
-    "stop_history": [ { "at": "2026-10-15T08:10:00Z", "from": 350, "to": 358 },
-                      { "at": "2026-10-21T08:05:00Z", "from": 358, "to": 365 } ],
+    "stop_history": [ { "at": "2026-10-15T08:10:00Z", "from": 350, "to": 358, "source": null },
+                      { "at": "2026-11-13T08:05:00Z", "from": 358, "to": 365, "source": "mcp" } ],
+    "target_history": [],
     "exit_mode": "strategy", "target_reached_at": null, "stop_breached_at": null,
     "added_at": "2026-09-01T02:00:00Z" }
 ], "total": 1 }
@@ -313,7 +314,7 @@ Query (all optional): `market`; `status` (`all`, the default, `open` or `closed`
 
 - `market` is the code's own market (`.HK`, `.SS`/`.SZ`, none for US), so an entry still counts after its stock left the watchlist.
 - `trigger.type` is why the stock was bought: `signal` on a strategy signal (with its `signal_id`, `strategy_id` and `strategy` name), `price_alert` on one of the user's price alerts, `manual` the user's own decision, `imported` a holding from before the journal, logged from the journal page's banner, `other` none of these. The journal's **By rules** (按规则操作) side is `signal` only, **By gut feel** (凭直觉操作) `manual` only.
-- `plan` is the stop and target written when the position was opened; `levels` are the ones in force now (null when cleared since); `stop_history` every stop change, oldest first. The closed part of a partial sale is a new entry that keeps only the plan: its `levels` are the plan's, its `stop_history` is empty and its `trade_id` null.
+- `plan` is the stop and target written when the position was opened; `levels` are the ones in force now (null when cleared since); `stop_history` and `target_history` every stop and target change, oldest first, with its `source` (see `GET /watchlist`). The closed part of a partial sale is a new entry that keeps only the plan: its `levels` are the plan's, its histories are empty and its `trade_id` null.
 - `realized_return_pct` is the closed entry's price return, without fees, as the journal page shows it; null while open. `close_reason`, `deviated_from_plan`, `deviation_reason` and `lesson` come from the website's **Close position** (平仓) form; a sale through `POST /trades` sets `close_reason` and `lesson` only.
 - `tags` are the labels of the buy the entry was logged for (`[]` when none); the closed part of a partial sale keeps them.
 - `trade_id` is the buy the entry was logged for, when known (`GET /trades`). `source` is `sample` for invented entries that an earlier **load sample data** button wrote into some older accounts (the execution record leaves them out), otherwise usually null.
@@ -497,7 +498,7 @@ Answers 200:
 Body: `{ "stop": 350, "target": 450 }`, `{ "exit_mode": "levels_only" }`, or both. Send any of the three fields; `null` clears a stop or target.
 
 - Changes the stop and target in force on every open journal entry of the stock. The entry plan (`entry_stop`, `entry_target`) is never changed.
-- Each change of the stop is added to `stop_history` (see `GET /watchlist`).
+- Each change of the stop is added to `stop_history`, and of the target to `target_history`, with `source: "api"` (see `GET /watchlist`).
 - `exit_mode` says how the holding's exits are watched:
   - `strategy`, the default: the strategy's exit and trim rules, and the stop and target, as for every holding;
   - `levels_only`: only the stop and target. The strategy sends no exit or trim signals for this holding;
