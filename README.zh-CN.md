@@ -42,7 +42,7 @@ AI 会读取[接入指南](https://stock-compass.app/ai/setup.md)，一步步带
 
 | | 作用 | 适用于 |
 | --- | --- | --- |
-| **MCP 连接器** `https://stock-compass.app/api/mcp` | 给 AI 11 个操作你自己记录的工具（4 个读取，7 个修改） | 任何支持远程 MCP 的应用：Claude、ChatGPT、Claude Code、Cursor 等 |
+| **MCP 连接器** `https://stock-compass.app/api/mcp` | 给 AI 17 个操作你自己记录的工具（8 个读取，9 个修改） | 任何支持远程 MCP 的应用：Claude、ChatGPT、Claude Code、Cursor 等 |
 | **Skill** `skills/stock-compass/` | 让 AI 了解 Stock Compass 的全部功能和使用规则：信号、策略和全部指标、回测、交易、手续费、交易日志、执行纪律、仓位、提醒、邮件、套餐、API 密钥和 REST 接口 | 支持 Agent Skills（`SKILL.md`）的应用。其它应用可以把这些文件当普通文档读。 |
 | **Claude 插件** `.claude-plugin/` | 一步装好连接器和 skill | Claude（网页版、桌面版、Cowork）和 Claude Code |
 

@@ -30,17 +30,23 @@ Connecting needs Stock Compass Pro. If the tools are not available, explain how 
 
 | Tool | Reads or writes |
 | --- | --- |
-| `get_watchlist` | Reads the watchlist and holdings, with quantity, cost, the stop and target in force, the entry plan and every stop change |
-| `get_signals` | Reads the signals from each market's active strategy, newest first |
+| `get_watchlist` | Reads the watchlist and holdings, with quantity, cost, the stop and target in force, the entry plan, every stop change, and when the target was reached or the stop went through |
+| `get_signals` | Reads the signals from each market's active strategy, newest first, with the indicator values and the conditions that matched |
 | `get_trades` | Reads recorded buys and sells, newest first |
+| `get_journal` | Reads the trade journal: why each position was opened, the plan, how it closed and the lesson |
+| `get_journal_stats` | Reads the journal page's figures for a market: return after fees, win rates by rules, gut feel and price alerts |
+| `get_strategies` | Reads the user's strategies, and which is active in each market |
+| `get_strategy` | Reads one strategy's rules, from a signal's `strategy_id` |
 | `get_price_alerts` | Reads price alerts, and whether and when each fired |
 | `add_to_watchlist` | Writes: adds a stock |
 | `remove_from_watchlist` | Writes: removes a stock, with its price alerts |
 | `record_trade` | Writes: records a buy or sell the user made |
 | `edit_trade` | Writes: corrects a recorded trade's price, quantity or date |
 | `delete_trade` | Writes: deletes a trade recorded by mistake |
-| `set_stop_target` | Writes: changes the stop and/or target of an open position |
+| `set_stop_target` | Writes: changes the stop and/or target of an open position, and how its exits are watched |
 | `create_price_alert` | Writes: adds a price alert |
+| `edit_price_alert` | Writes: changes an alert's level or note, or re-arms one that fired |
+| `delete_price_alert` | Writes: deletes a price alert |
 
 There is no tool for creating or changing strategies. To help with a strategy, write it as JSON for the user to import ([strategies.md](references/strategies.md#importing-and-exporting-json)).
 
@@ -56,11 +62,12 @@ Prices are in the stock's own currency: HKD, USD or CNY.
 
 ## Reading
 
-- `get_watchlist` takes `holding: true` for holdings only. Each holding has `opened_at`, the stop and target set at entry (`entry_stop`, `entry_target`), and `stop_history`, every change of the stop since.
-- `get_signals` covers the last 7 days by default (`days` up to 90). Types default to buy, add, exit and trim; ask for `price_alert` too when the user wants alerts that fired.
-- Buy and add signals wait for the daily bar to be final: the next trading day's 09:00 scan, in that market's time, records them, so a Friday's appear on Monday. Exit and trim are recorded during the session. A card the dashboard shows as provisional ("Intraday · confirmed at close") is not in the results yet.
+- `get_watchlist` takes `holding: true` for holdings only, and returns 100 stocks a page: when `next_offset` is not null, send it as `offset` for the rest. Each holding has `opened_at`, the stop and target set at entry (`entry_stop`, `entry_target`), `stop_history`, every change of the stop since, and `target_reached_at` / `stop_breached_at` once the price got there.
+- `get_signals` covers the last 7 days by default (`days` up to 90, or `from` and `to`), 25 signals a page; `ticker` narrows it to one stock. Types default to buy, add, exit and trim; ask for `price_alert` too when the user wants alerts that fired. A strategy signal has `matched_conditions`, the rule's conditions that held, and `strategy_id`: `get_strategy` gives the whole rule when the user asks why it fired.
+- Buy and add signals wait for the daily bar to be final: the scan after the close records them the same evening (about 16:20 Hong Kong time, about 16:10 New York time). Exit and trim are recorded during the session. A card the dashboard shows as provisional ("Intraday · confirmed at close") is not in the results yet.
 - A rule that stays true is recorded again on every bar, so the same exit can appear day after day. Each signal has `active_since`, the first day of that run, and `occurrences`. Report a run once, with the date it began ("the exit rule on ANF has fired every day since 2026-10-19"), not as five new signals. `state: "new"` returns only the first day of each run.
 - `get_trades` returns 100 trades by default (`limit` up to 500). Use `offset` for more.
+- For "how am I doing by my rules", use `get_journal_stats` for the market: it gives the same figures as the Journal page, so quote them rather than working your own from `get_trades`. `get_journal` has each position's reason, plan, close reason and lesson.
 - The connection allows 60 requests a minute, and every MCP message counts: a write, which takes two calls, costs two. Prefer one `get_watchlist` over a call per stock, and space a long list of writes about a second apart.
 
 ## Rules for every answer
@@ -87,7 +94,8 @@ Writes change the user's records in Stock Compass. They never place an order wit
 - The stock must be on the watchlist. If the call says it is not, offer to add it, and ask first: then send the trade again with `add_to_watchlist: true`, which adds it and records the buy in one call.
 - `price` is the price per share, without fees. When the user knows what the broker charged (from a statement or a fill), pass it as `fees`: it is kept and used in their P&L. Otherwise Stock Compass estimates the fees from the user's own trading-cost settings. The result says which (`fees_source`).
 - `quantity` is whole shares.
-- `traded_at` is the trade date in that market (`YYYY-MM-DD`). It defaults to today there and cannot be in the future. Pass the user's date if they traded earlier. Trades on the same date count in the order they are recorded, so record a day's trades in the order they happened.
+- `traded_at` is the trade date in that market (`YYYY-MM-DD`). It defaults to today there and cannot be in the future. Pass the user's date if they traded earlier. Pass `executed_at` when the user has the time of the fill; trades on the same date count in time order, and those without a time in the order they are recorded, so record a day's trades in the order they happened.
+- A trade dated before trades already recorded in the same stock is refused with `out_of_order`, since it changes what was worked out for them; the error lists those trades. Tell the user, and only if they still want it recorded, send it again with `allow_out_of_order: true`.
 - Pass `external_id` when the trade has an id of its own, such as the broker's order number. The same id sent again records nothing and returns the trade already recorded, so a call that failed without an answer can be sent again as it was. Without it, a trade sent twice is recorded twice: check `get_trades` first.
 - **Buy**:
   - Leave `trigger` out unless the user says why they bought. Without it, Stock Compass files the buy as on a signal if the strategy in use in that market gave the stock a buy signal in the last 14 days, counted back from today (for a stock already held, an add or buy signal), and otherwise as manual.
@@ -104,16 +112,19 @@ Writes change the user's records in Stock Compass. They never place an order wit
 - `edit_trade` corrects the price, quantity or date of a recorded trade (`id` from `get_trades`). Prefer it to deleting and recording again: the journal entry keeps its trigger, stop and thesis. Cash moves by the difference. Pass `fees` to correct what the broker charged, alone or with the rest; without it, a reported fee stays while price and quantity do, and is otherwise estimated again. The side and the ticker cannot change; for those, delete the trade and record the right one.
 - `delete_trade` deletes a trade recorded by mistake. The cash it moved goes back and the holding is recomputed. A buy's journal entry goes with it; a deleted sale does not reopen the entries it closed. A buy whose shares a later sale used is refused: change the sale first.
 - When either answers with `journal_review`, tell the user, in their language: some journal entry was left as it was for them to check on the Journal page, on that date. `kind` says which: `buy_entry` (the buy's entry) or `sell_close` (the entries the sale closed).
-- `set_stop_target` changes the open position's current stop and/or target. Only the value you pass changes, and `null` clears it. The planned levels from entry are kept as they were, and each stop change is added to the position's `stop_history`.
+- `set_stop_target` changes the open position's current stop and/or target. Only the value you pass changes, and `null` clears it. The planned levels from entry are kept as they were, and each stop change is added to the position's `stop_history`. `exit_mode` changes how the holding's exits are watched: `strategy` (the strategy's exit and trim rules and the levels), `levels_only` (only the stop and target) or `external` (managed elsewhere: no exit or trim signals, and no alerts on the levels).
 - `remove_from_watchlist` is refused while the stock is held. It deletes the stock's price alerts, so say so when you confirm; trades, the journal and signals are kept.
-- `create_price_alert` takes `direction` (`above` or `below`), `threshold` and an optional `note`. It is checked at each scan and fires once.
+- `create_price_alert` takes `direction` (`above` or `below`), `threshold` and an optional `note`. It is checked at each scan and fires once. A stock off the watchlist must be known at its quote source.
+- `edit_price_alert` changes an alert's `threshold` or `note`, or with `rearm: true` makes one that fired watch again; `delete_price_alert` deletes it (`id` from `get_price_alerts`). The plan's own stop and target alerts (`from_plan`) follow the position: change or clear their level with `set_stop_target`; they can only be re-armed.
 
 ## When a tool returns an error
 
 Error messages are written for the user; pass them on plainly.
 
-- **"This connection may only read"**: the user approved read-only access. To allow changes, they disconnect the app in Stock Compass (Settings → AI apps & API) and connect again with changes ticked, or use an API key with writes allowed.
-- **"part of Stock Compass Pro"**: the account is not on Pro.
+Each error also has a code in `structuredContent.error.code`, such as `not_on_watchlist` or `out_of_order`.
+
+- **"This connection may only read"** (`insufficient_scope`): the user approved read-only access. To allow changes, they connect the app to Stock Compass again and tick changes on the approval page; there is no need to disconnect first. With an API key, they create one with writes allowed.
+- **"part of Stock Compass Pro"** (`plan_required`): the account is not on Pro.
 - **Any other refusal**, such as not on the watchlist, still held, more shares than held, or a limit reached: the message says what to do. Offer that step, and ask first.
 
 Reply in the user's language. The site is in English and Chinese: when you name a page, button or setting, use the label the user's site shows. The reference files give each label in English, with the Chinese one in brackets.

@@ -98,9 +98,9 @@ Imported or shared strategies do count.
 - Each signal is dated by the bar it was computed on, not by when the scan ran.
 
 **Scan schedule** (weekdays):
-- HK and A-shares at 09:00, 13:00, 14:00 and 15:00 Hong Kong time.
-- US at 09:00, 12:00 and 15:00 New York time.
-- The 09:00 run records the previous day's final buy and add signals. Runs during the session check holdings and price alerts.
+- HK and A-shares at 09:00, 13:00, 14:00 and 15:00, and after the close at about 16:20, Hong Kong time.
+- US at 09:00, 12:00 and 15:00, and after the close at about 16:10, New York time.
+- The run after the close records that day's final buy and add signals and sends the signal email the same evening. The 09:00 run catches any it missed. Runs during the session check holdings and price alerts.
 
 **Which signals the user sees**:
 - The dashboard and the API show the strategy active in each market. The scan logs every strategy's signals, so each strategy keeps its own record.
@@ -343,10 +343,10 @@ The stop distance is the active strategy's smallest `floating_loss_pct` exit thr
 ## Price alerts
 
 - **Creating one**: in Settings → Price Alerts (设置 → 价格提醒), or through the API. An alert has a ticker, Above (涨破) or Below (跌破), a price and an optional note.
-- **Limits**: 500 per account; duplicates are refused.
+- **Limits**: 500 per account, not counting the plan's own stop and target alerts; duplicates are refused.
 - **Plan alerts**: the planned stop and target of every holding are kept as automatic alerts, labelled Planned stop (计划止损) and Planned target (计划目标) and marked Auto (自动). They move with the plan, and the user's own alerts are never touched.
 - **When one fires**:
-  - It is checked at every scan: four times a day for HK and A-shares, three for the US.
+  - It is checked at every scan: five times a day for HK and A-shares, four for the US.
   - It fires when the price is at or through the level, or when a later day's high or low crossed it.
   - It fires once, and **🔄 Re-arm** (🔄 重新启用) re-arms it.
 - **Email**: fired alerts reach Pro users in an email of their own (on by default), and everyone in the app.

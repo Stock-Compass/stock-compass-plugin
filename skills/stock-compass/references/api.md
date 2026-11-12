@@ -73,7 +73,7 @@ The MCP endpoint is `https://stock-compass.app/api/mcp`. It uses Streamable HTTP
   - Clients register themselves (dynamic client registration). They are public clients, with no secret, and PKCE with `S256` is required. Redirect URIs (one to ten) are https, http on localhost, or an app scheme, with no fragment. Registrations from sites other than the known apps are limited to 10 an hour from one address.
   - An access token lasts an hour. A refresh token lasts 90 days and is replaced at each use; an old one sent again revokes that connection's tokens. So a connection unused for 90 days has to be approved again.
   - A request with no scope asks for both read and write; the user still chooses on the approval page.
-  - MCP protocol versions: 2025-11-25, 2025-06-18 and 2025-03-26.
+  - MCP protocol versions: 2025-11-25, 2025-06-18 and 2025-03-26. `initialize` reports the server's `version` (2.0.0 since the tools gained the journal, strategy and alert-editing tools in November 2026).
   - `/api/v1` sends no CORS headers: an API key does not belong in a web page.
 
 ### Connecting common apps
@@ -106,17 +106,25 @@ The MCP tools map one to one onto the REST endpoints below:
 | `edit_trade` | `PATCH /trades/{id}` |
 | `delete_trade` | `DELETE /trades/{id}` |
 | `set_stop_target` | `PATCH /positions/{ticker}` |
+| `get_journal` | `GET /journal` |
+| `get_journal_stats` | `GET /journal/stats` |
+| `get_strategies` | `GET /strategies` |
+| `get_strategy` | `GET /strategies/{id}` |
 | `create_price_alert` | `POST /alerts` |
+| `edit_price_alert` | `PATCH /alerts/{id}` |
+| `delete_price_alert` | `DELETE /alerts/{id}` |
 
-Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`), changing or deleting a price alert (`PATCH`/`DELETE /alerts/{id}`), the trade journal (`GET /journal`, `GET /journal/stats`) and strategies (`GET /strategies`, `GET /strategies/{id}`) are REST only for now, and so is a holding's `exit_mode`.
+Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`), `POST /trades/batch`, `POST /reconcile/positions` and `GET /settings/trading-costs` are REST only.
 
-Tool arguments use the same names as the REST fields. In MCP, `types` for `get_signals` is a list. Tool errors come back as a result marked as an error, with the message described under "Errors" below.
+Tool arguments use the same names as the REST fields, and a tool returns what its endpoint returns. In MCP, `types` for `get_signals` is a list. Two reads page by default so one answer stays small: `get_watchlist` 100 stocks and `get_signals` 25 signals (REST returns every match without `limit`); `total` and `next_offset` say whether there is more.
 
-**Writes over MCP take two calls.** Sent without `preview_id`, a write tool changes nothing. It answers with `status: "confirmation_needed"`, the `change` as it would be made (for `record_trade`, with the date it defaults to), for `edit_trade` and `delete_trade` the `trade` it changes, and a `preview_id` (`pv_` and 12 hex digits). Once the user agrees, the same arguments sent again with that `preview_id` make the change. A `preview_id` fits only that change on that connection, and lasts 10 to 20 minutes. Sent with any other change, or late, it changes nothing and comes back with a new preview. `record_trade` also returns a `note` that no order is placed. A preview does not check that the change can be made (the stock on the watchlist, enough shares to sell, the plan's limits): the second call does, so look at `get_watchlist` first. The REST API has no previews.
+A tool error comes back as a result marked as an error. Its text is the message described under "Errors" below, and `structuredContent.error` has the same `code` and `message`, with anything REST sends beside the error (such as `later_trades`) next to it. Where a REST message names an endpoint, the tool's names the tool that does it. Besides REST's codes: `insufficient_scope` (a read-only connection tried to write: connect the app again and allow changes on the approval page, or use a key with writes) and `plan_required` (the account is not on Pro).
+
+**Writes over MCP take two calls.** Sent without `preview_id`, a write tool changes nothing. It answers with `status: "confirmation_needed"`, the `change` as it would be made (for `record_trade`, with the date it defaults to), for `edit_trade` and `delete_trade` the `trade` it changes, for `edit_price_alert` and `delete_price_alert` the `alert`, and a `preview_id` (`pv_` and 12 hex digits). Once the user agrees, the same arguments sent again with that `preview_id` make the change. A `preview_id` fits only that change on that connection, and lasts 10 to 20 minutes. Sent with any other change, or late, it changes nothing and comes back with a new preview. `record_trade` also returns a `note` that no order is placed. A preview does not check that the change can be made (the stock on the watchlist, enough shares to sell, the plan's limits): the second call does, so look at `get_watchlist` first. The REST API has no previews.
 
 ## REST API
 
-Base URL: `https://stock-compass.app/api/v1`. It accepts **API keys only**; OAuth tokens work only with `/api/mcp`.
+Base URL: `https://stock-compass.app/api/v1`. It accepts **API keys only**; OAuth tokens work only with `/api/mcp`. An OpenAPI 3.1 description is at `GET /api/v1/openapi.json`, without a key; tools such as Postman import it.
 
 - Requests and responses are JSON.
 - `GET` needs the read scope; `POST`, `PATCH` and `DELETE` need write.
@@ -176,7 +184,8 @@ Query, all optional:
 - `opened_at`: the date of the oldest open journal entry, when the position was opened;
 - `journal_entry_id`, `entry_stop`, `entry_target`: the latest buy's journal entry, whose levels are in force, with the stop and target set when it was bought;
 - `stop_history`: every change of that entry's stop since, oldest first, from any source (website, API or app). `from` or `to` is null when there was no stop. Target changes are not kept;
-- `exit_mode`: how the holding's exits are watched, `strategy`, `levels_only` or `external` (see `PATCH /positions/{ticker}`).
+- `exit_mode`: how the holding's exits are watched, `strategy`, `levels_only` or `external` (see `PATCH /positions/{ticker}`);
+- `target_reached_at` and `stop_breached_at`: when the price reached the target, or went through the stop, in force, from the alert the website keeps on it (`from_plan` in `GET /alerts`); null while it has not, and while there is no target or stop. A new level, or re-arming its alert, starts over. With `exit_mode: external` the levels have no alerts, so both stay null.
 
 ```json
 { "items": [
@@ -185,7 +194,7 @@ Query, all optional:
     "opened_at": "2026-10-02", "journal_entry_id": 42, "entry_stop": 350, "entry_target": 450,
     "stop_history": [ { "at": "2026-10-15T08:10:00Z", "from": 350, "to": 358 },
                       { "at": "2026-10-21T08:05:00Z", "from": 358, "to": 365 } ],
-    "exit_mode": "strategy",
+    "exit_mode": "strategy", "target_reached_at": null, "stop_breached_at": null,
     "added_at": "2026-09-01T02:00:00Z" }
 ], "total": 1 }
 ```
@@ -216,16 +225,16 @@ Query, all optional:
 - `ticker`: one stock, in any form GET /trades takes (`700` is 0700.HK without `market`);
 - `types`: comma-separated, any of `buy,add,exit,trim,price_alert`; default `buy,add,exit,trim`;
 - `state`: `all` (the default), `new` or `active`. See runs below;
-- `recorded_after`: a time, such as `2026-10-31T01:00:00Z`: only signals whose `recorded_at` is later. For polling, send the latest `recorded_at` you have; a buy for an earlier `date` can still arrive, since buys are recorded the next trading day;
+- `recorded_after`: a time, such as `2026-10-31T01:00:00Z`: only signals whose `recorded_at` is later. For polling, send the latest `recorded_at` you have; a buy for an earlier `date` can still arrive, since buys are recorded after the bar is final;
 - `limit` (1–500) and `offset` (default 0): one page. Without `limit`, every match. `total` counts every match; `next_offset` is null on the last page.
 
 Each market's buy, add, exit and trim signals come from the strategy that was active in that market on each date. Price-alert signals are the user's own alerts that fired. Results are newest first.
 
 - `date` is the daily bar the signal was computed on, in the market's time zone. `recorded_at` is when the scan wrote it (UTC).
-- Buy and add wait for that bar to be final: they are recorded by the next trading day's 09:00 scan, in that market's time, so a Friday's appear on Monday. Exit and trim are recorded during the session, at the price when the scan ran.
+- Buy and add wait for that bar to be final: they are recorded by the scan after the close, the same evening (about 16:20 Hong Kong time for HK and A-shares, about 16:10 New York time for the US), or failing that by the next trading day's 09:00 scan. Exit and trim are recorded during the session, at the price when the scan ran.
 - `days` counts back from the market's own date (for all markets, the earliest of them), not from UTC's.
 - `strategy` and `strategy_id` name the strategy that fired; `GET /strategies/{strategy_id}` gives its rules.
-- Why it fired: a strategy signal has `indicators`, a fixed set of indicator values when it was recorded, and `matched_conditions`, the rule's conditions that held. Each has `indicator`, `operator`, `threshold` (a number, a text, or the list of `IN` / `NOT IN`) and the `value` at the time (`null` if it was not a finite number); an old indicator name reads as its current one. They are the conditions that made the rule fire: every condition of an AND group, the first that held of an OR group, and with groups joined by OR, those of the first group that held. `matched_conditions` is `null` on signals recorded before it was added (November 2026). MCP's `get_signals` leaves out both. A price-alert signal has `alert`: the alert's `id`, `threshold`, `direction` and `note`, `plan` (`stop` or `target` when the alert is the plan's stop or target from the journal, otherwise `null`, also when the alert has been deleted since), and `touched` (the bar's low or high that crossed the level, and its date, when it was a bar and not the price at the scan).
+- Why it fired: a strategy signal has `indicators`, a fixed set of indicator values when it was recorded, and `matched_conditions`, the rule's conditions that held. Each has `indicator`, `operator`, `threshold` (a number, a text, or the list of `IN` / `NOT IN`) and the `value` at the time (`null` if it was not a finite number); an old indicator name reads as its current one. They are the conditions that made the rule fire: every condition of an AND group, the first that held of an OR group, and with groups joined by OR, those of the first group that held. `matched_conditions` is `null` on signals recorded before it was added (November 2026). A price-alert signal has `alert`: the alert's `id`, `threshold`, `direction` and `note`, `plan` (`stop` or `target` when the alert is the plan's stop or target from the journal, otherwise `null`, also when the alert has been deleted since), and `touched` (the bar's low or high that crossed the level, and its date, when it was a bar and not the price at the scan).
 - The answer gives the window's `from`, and `to` when one was sent.
 
 **Runs.** A rule that stays true is recorded again on every bar: an exit rule that holds for a week gives five exit signals. Signals of one strategy, ticker and type on consecutive scanned bars form one run.
@@ -253,9 +262,9 @@ Each market's buy, add, exit and trim signals come from the strategy that was ac
 
 ### GET /trades
 
-Query: `market`, `ticker`, `from`, `to`, `external_id` (all optional); `limit` (1–500, default 100); `offset` (default 0). A `ticker` without `market` finds its market from the code: `700` is 0700.HK, `600519` is 600519.SS, `BRK.B` is BRK-B.
+Query: `market`, `ticker`, `from`, `to`, `external_id`, `tag` (all optional); `limit` (1–500, default 100); `offset` (default 0). `tag` keeps the trades that carry that label (see `tags` under `POST /trades`). A `ticker` without `market` finds its market from the code: `700` is 0700.HK, `600519` is 600519.SS, `BRK.B` is BRK-B.
 
-Results are newest first: by date, and within a date by when they were recorded. `executed_at` is the time the trade was executed when the client sent one, otherwise null; it is UTC, written `…+00:00` here and `…Z` in the answer to `POST /trades`. `total` is the number of trades that match; `next_offset` is null on the last page. `external_id` is null for a trade recorded without one, such as on the website. `fees` is the fee the client reported, with `fees_source: "provided"`; it is null with `"estimated"` when none was. `estimated_fees` is then the estimate from the user's trading-cost settings that the trade was recorded with, as the website's P&L counts it (for an old trade with none kept, from the current settings); it is null when a fee was reported.
+Results are newest first: by date, and within a date by when they were recorded. `executed_at` is the time the trade was executed when the client sent one, otherwise null; it is UTC, written `…+00:00` here and `…Z` in the answer to `POST /trades`. `total` is the number of trades that match; `next_offset` is null on the last page. `external_id` is null for a trade recorded without one, such as on the website. `fees` is the fee the client reported, with `fees_source: "provided"`; it is null with `"estimated"` when none was. `estimated_fees` is then the estimate from the user's trading-cost settings that the trade was recorded with, as the website's P&L counts it (for an old trade with none kept, from the current settings); it is null when a fee was reported. `tags` is there only on a trade recorded with some.
 
 ```json
 { "trades": [
@@ -294,7 +303,7 @@ One strategy with its rules as they are now, so a signal's `strategy_id` leads t
 
 The trade journal, as the website's journal page lists it: one entry per position opened, newest opened first. A partial sale closes part of an entry as an entry of its own.
 
-Query (all optional): `market`; `status` (`all`, the default, `open` or `closed`); `ticker`; `from` and `to`, dates the entry was opened; `trigger` (`signal`, `price_alert`, `manual`, `imported` or `other`); `limit` (1–500, default 100) and `offset` (default 0).
+Query (all optional): `market`; `status` (`all`, the default, `open` or `closed`); `ticker`; `from` and `to`, dates the entry was opened; `trigger` (`signal`, `price_alert`, `manual`, `imported` or `other`); `tag`, entries with that label; `limit` (1–500, default 100) and `offset` (default 0).
 
 `total` counts entries, as the journal page's list shows them: a buy sold in three parts is four. The page's own trade counts group those into one.
 
@@ -302,6 +311,7 @@ Query (all optional): `market`; `status` (`all`, the default, `open` or `closed`
 - `trigger.type` is why the stock was bought: `signal` on a strategy signal (with its `signal_id`, `strategy_id` and `strategy` name), `price_alert` on one of the user's price alerts, `manual` the user's own decision, `imported` a holding from before the journal, logged from the journal page's banner, `other` none of these. The journal's **By rules** (按规则操作) side is `signal` only, **By gut feel** (凭直觉操作) `manual` only.
 - `plan` is the stop and target written when the position was opened; `levels` are the ones in force now (null when cleared since); `stop_history` every stop change, oldest first. The closed part of a partial sale is a new entry that keeps only the plan: its `levels` are the plan's, its `stop_history` is empty and its `trade_id` null.
 - `realized_return_pct` is the closed entry's price return, without fees, as the journal page shows it; null while open. `close_reason`, `deviated_from_plan`, `deviation_reason` and `lesson` come from the website's **Close position** (平仓) form; a sale through `POST /trades` sets `close_reason` and `lesson` only.
+- `tags` are the labels of the buy the entry was logged for (`[]` when none); the closed part of a partial sale keeps them.
 - `trade_id` is the buy the entry was logged for, when known (`GET /trades`). `source` is `sample` for invented entries that an earlier **load sample data** button wrote into some older accounts (the execution record leaves them out), otherwise usually null.
 
 ```json
@@ -319,12 +329,13 @@ Query (all optional): `market`; `status` (`all`, the default, `open` or `closed`
 
 ### GET /journal/stats
 
-The journal page's figures for one market, worked out by the same code as the page and the Monday review email, so the three agree. Query: `market` (required), by the code's own market as the Monday email counts it; `from` (optional), entries opened on or after that date, as the page's periods.
+The journal page's figures for one market, worked out by the same code as the page and the Monday review email, so the three agree. Query: `market` (required), by the code's own market as the Monday email counts it; `from` (optional), entries opened on or after that date, as the page's periods; `group_by=tag` (optional) adds `by_tag`.
 
 - `trades` and `closed` count decisions, as the page does: a buy sold in three parts is one trade.
 - `cumulative_return_pct` is the closed entries' gain less their fees over what they cost, as the page's figure and equity curve: the fees kept with the trades, else the user's trading-cost settings (the market's default schedule when none are set). `avg_hold_trading_days` counts weekdays from open to close. Both are null with nothing closed.
 - `by_rules`, `by_gut` and `by_price_alert` are the closed trades by why they were bought (`signal`, `manual`, and a signal that was a price alert; `imported` and `other` are in neither): `count`, `wins`, `win_rate_pct` and `avg_return_pct`, price returns without fees, as the page. With no trades on a side the two rates are null.
 - `comparison.result` is the page's and the email's reading of the two averages: `insufficient` (with `needed_per_side`, each side needs that many closed trades), `close` (within 1 point), `rules_better` or `gut_better`, with `gap_pp`, the size of the difference in points (never negative: `result` says which side is ahead). It states the record; it is not advice.
+- `by_tag`, with `group_by=tag`: the closed trades under each label, with `count`, `wins`, `win_rate_pct` and `avg_return_pct` as above, most trades first. A trade with two labels counts under both; the unlabelled ones are under `tag: null`.
 
 ```json
 { "market": "hk", "from": null, "trades": 24, "closed": 18,
@@ -357,6 +368,7 @@ Records a buy or sell the user made, exactly as the trade form on the website do
 | `fees` | no | What the broker charged for this trade, zero or more, in its currency. Without it, estimated from the user's settings. |
 | `exit_mode` | buy only | `strategy`, `levels_only` or `external`: how the holding's exits are watched from now on. See `PATCH /positions/{ticker}`. |
 | `allow_out_of_order` | no | `true`: record a trade dated before trades already recorded for the stock, even though it changes them. See below. Default `false`. |
+| `tags` | buy only | Up to 10 labels, each 1 to 40 characters without commas, such as the system or the kind of signal behind the trade. Kept on the trade and its journal entry; filter with `tag` and count with `GET /journal/stats?group_by=tag`. |
 
 - **Fees**: `fees` is what the broker charged, zero or more, in the trade's currency; it moves cash and is kept. Without it, the fee is worked out from the user's own trading-cost settings for that market. The response returns the fee and `fees_source`. See [Cost, fees and P&L](#cost-fees-and-pl).
 - **`trigger`** says why the user bought. The journal's **By rules** (按规则操作) vs **By gut feel** (凭直觉操作) comparison is built on it.
@@ -381,8 +393,8 @@ Records a buy or sell the user made, exactly as the trade form on the website do
   - Once that trade is deleted, the id is free again.
   - Without `external_id`, sending the same trade twice records it twice.
 - **Same-day order**: trades on one date count by `executed_at`, and a trade without one at the time it was recorded. A trade entered on the website has no time, so it counts when it was entered: a client that sends times should leave the website's trades of that day alone, or a timed sale may count before a buy entered later on the website. See [Dates and times](#dates-and-times).
-- **Out of order**: trades count in date order, so a trade dated before trades already recorded for the stock changes what was worked out for them. When it would, the request gives 409 `out_of_order` and records nothing: a buy dated before a later sale, or a sale dated before any later trade. A buy before later buys only is recorded, since buys add up the same in any order. The error lists the later trades in `later_trades` (up to 20, oldest first; `more_later_trades` is true when there are more). Send trades oldest first; to record one anyway, such as a missed trade, send it again with `allow_out_of_order: true`. Within one date it is checked when the trade has `executed_at`: a trade with an earlier time than the date's trades already recorded counts before them, so a buy at 09:30 sent after a sale at 10:00 gives `out_of_order`. A trade without a time counts after the date's trades already recorded, and is not checked within its date. Two requests for the same stock sent at once are not checked against each other: send a stock's trades one after another. MCP's `record_trade` does not check this yet. Moving a trade's date with `PATCH /trades/{id}` is not checked either, and drops its `executed_at`, which belonged to the old date.
-- **`executed_at`** is kept with the trade and returned by `GET /trades` and in this answer. Before it is available a request with it gives 503 `not_available` and records nothing; without it the request works as before. MCP's `record_trade` does not take it, and the tools do not show it, while the ChatGPT review runs.
+- **Out of order**: trades count in date order, so a trade dated before trades already recorded for the stock changes what was worked out for them. When it would, the request gives 409 `out_of_order` and records nothing: a buy dated before a later sale, or a sale dated before any later trade. A buy before later buys only is recorded, since buys add up the same in any order. The error lists the later trades in `later_trades` (up to 20, oldest first; `more_later_trades` is true when there are more). Send trades oldest first; to record one anyway, such as a missed trade, send it again with `allow_out_of_order: true`. Within one date it is checked when the trade has `executed_at`: a trade with an earlier time than the date's trades already recorded counts before them, so a buy at 09:30 sent after a sale at 10:00 gives `out_of_order`. A trade without a time counts after the date's trades already recorded, and is not checked within its date. Two requests for the same stock sent at once are not checked against each other: send a stock's trades one after another. MCP's `record_trade` checks it the same way. Moving a trade's date with `PATCH /trades/{id}` is not checked either, and drops its `executed_at`, which belonged to the old date.
+- **`executed_at`** is kept with the trade and returned by `GET /trades` and in this answer. Before it is available a request with it gives 503 `not_available` and records nothing; without it the request works as before.
 
 Answers 201:
 
@@ -393,6 +405,40 @@ Answers 201:
 ```
 
 For a sale, `journal_closed_shares` takes the place of `journal_entry_id` and `trigger`; `ignored` and `journal_note` appear only when `close_reason` and `lesson` were not kept. `external_id` is there only when one was sent.
+
+### POST /trades/batch
+
+Up to 50 trades in one request, which counts as one against the rate limit. Body: `{ "trades": [ … ], "on_error": "stop", "dry_run": false }`; each trade is what `POST /trades` takes.
+
+- The trades are recorded one at a time, in the order given, each exactly as `POST /trades` records it. One that is refused does not undo those before it: there is no all-or-nothing mode.
+- `on_error`: `stop` (the default) leaves the rest unattempted after a refusal, since a later trade of the same stock usually depends on it; `continue` tries them all.
+- Give every trade an `external_id`: a batch sent again after a timeout then records nothing twice.
+- Answers 200 with `{ dry_run: false, total, recorded, failed, not_attempted, stopped_at, results }`. Each result has `index`; `ok: true` with the `trade` as `POST /trades` answers it, or `ok: false` with the `status` and `error` it would have given.
+- **`dry_run: true`** records nothing and says what each trade would be: `new` (no trade with its `external_id` yet; without one, this is all it can say), `match` (a trade with that `external_id` is recorded, with the same side, price, quantity and date), `conflict` (one is, and it differs; the `trade` is there), or `invalid` (it would be refused; `error` says why). It checks the fields, the `external_id` and the watchlist, not the holdings, so an oversell shows only when the batch is really sent. The answer counts each kind: `{ dry_run: true, total, new, match, conflict, invalid, results }`.
+
+### POST /reconcile/positions
+
+Compares the holdings recorded here with the ones a broker shows, for one market, and names the stocks where they differ. It changes nothing, so a read-only key may call it. Body: `{ "market": "hk", "positions": [ { "ticker": "700", "quantity": 200 } ] }`, up to 2000 positions; the same stock twice adds up (two accounts at one broker).
+
+- Each difference has `ticker`, `kind`, `here` and `broker` (the shares on each side, null where it is not held) and `difference` (broker minus here). `kind` is `quantity` (both hold it, in different amounts), `missing_at_broker` (held here only: a sale not recorded?) or `missing_here` (at the broker only: a buy not recorded?).
+- Costs are not compared: brokers average them differently.
+
+```json
+{ "market": "hk", "held_here": 3, "held_at_broker": 3, "matched": 1,
+  "differences": [ { "ticker": "0005.HK", "kind": "quantity", "here": 400, "broker": 350, "difference": -50 } ] }
+```
+
+### GET /settings/trading-costs
+
+Query: `market` (required). The user's trading-cost settings for the market, the ones `estimated_fees` is worked out from, or the market's default when none are saved, with the `formula` in words, so a client can work the same estimate out itself.
+
+```json
+{ "market": "hk", "currency": "HKD",
+  "costs": { "broker": "moomoo", "commission_pct": 0.03, "per_share_commission": null, "min_commission": 3,
+             "platform_fee": 15, "per_share_platform_fee": null, "min_platform_fee": null,
+             "other_fees_pct": 0.018, "stamp_duty_pct": 0.1, "stamp_duty_on": "buy_and_sell" },
+  "formula": "One side of a trade, value = price x quantity. …" }
+```
 
 ### PATCH /trades/{id}
 
@@ -476,8 +522,9 @@ All of the user's alerts come in one answer (an account holds at most 500): `tot
 
 Body: `{ "market": "us", "ticker": "AAPL", "direction": "below", "threshold": 210, "note": "…" }`.
 
+- A stock not on the watchlist is first looked up at its market's quote source, as the website's alert form does: one it does not know gives 404 `unknown_ticker`. A stock on the watchlist is taken as it is.
 - A duplicate gives 409 `exists`.
-- At most 500 alerts per account (403 `limit`).
+- At most 500 alerts per account (403 `limit`); the plan's own stop and target alerts are counted apart and never block one.
 - Answers 201 with `{ id, ticker, market, direction, threshold, note }`.
 
 ### PATCH /alerts/{id}
@@ -522,7 +569,7 @@ Body: `{ "market": "hk", "ticker": "700", "ex_div_date": "2026-05-15", "dps": 4.
 
 - Recorded as the website's dividends page records it. `cash_amount` is what arrived in the market's cash after any withholding tax; with it, the cash goes up by that much in the same step. Without it, no cash moves. In a market whose cash is not tracked, the dividend is saved and `cash_added` is false.
 - Answers 201 with `{ dividend, cash_added, cash }`.
-- There is no `external_id` here: the same dividend sent twice is recorded twice. After a timeout, look at `GET /dividends` before sending it again.
+- `external_id` (optional, 1 to 100 characters, such as the broker's record of the payment) guards against recording it twice, as for trades: the same id sent again in the same market records nothing and answers 409 `exists`, with the dividend already recorded under it beside the error (`"dividend": { … }`). Without it, the same dividend sent twice is recorded twice.
 
 ### DELETE /dividends/{id}
 
@@ -538,6 +585,10 @@ Every error has the same shape:
 
 The `message` is written for the user; pass it on.
 
+- Every answer has an `x-request-id` header. A 500 also gives it in the message and as `error.request_id`: quote it when reporting the problem.
+- A 401 has `WWW-Authenticate: Bearer realm="Stock Compass API"`. A 401 or an unknown endpoint names this reference in its message.
+- A path that exists under other methods gives 405 `method_not_allowed`, with an `Allow` header listing them.
+
 | Status | Codes | Meaning |
 | --- | --- | --- |
 | 400 | `bad_request`, `bad_ticker` | A field is missing or invalid; the message says which. |
@@ -547,6 +598,7 @@ The `message` is written for the user; pass it on.
 | 403 | `pro_required` | The account is not on Pro. |
 | 403 | `limit` | Watchlist or price-alert limit reached. |
 | 404 | `not_found` | Unknown endpoint. |
+| 405 | `method_not_allowed` | The endpoint takes other methods; `Allow` lists them. |
 | 404 | `unknown_ticker` | The ticker is not at the market's quote source. |
 | 404 | `not_on_watchlist` | Removing a stock that is not on the watchlist. |
 | 404 | `no_open_position` | Setting levels on a stock that is not held. |
@@ -554,7 +606,7 @@ The `message` is written for the user; pass it on.
 | 404 | `dividend_not_found` | No dividend of this user has that id. |
 | 404 | `alert_not_found` | No price alert of this user has that id. |
 | 404 | `strategy_not_found` | No strategy of this user has that id. |
-| 409 | `exists` | Already on the watchlist, the same alert already exists, or a trade is already recorded with that `external_id` (the body also has the `trade`). |
+| 409 | `exists` | Already on the watchlist, the same alert already exists, or a trade or dividend is already recorded with that `external_id` (the body also has the `trade` or `dividend`). |
 | 409 | `from_plan` | Changing or deleting the alert on a plan's stop or target; change the plan with `PATCH /positions/{ticker}`. |
 | 409 | `holding` | Removing a stock that is still held. |
 | 409 | `not_on_watchlist` | Recording a trade in a stock that is not on the watchlist. |
@@ -580,17 +632,20 @@ Any request can also give 401, 403 `pro_required`, 429 and 500. Besides those:
 | `GET /strategies` | 400 `bad_request` |
 | `GET /strategies/{id}` | 400 `bad_request`, 404 `strategy_not_found` |
 | `POST /trades` | 400, 403 `scope` or `limit`, 404 `unknown_ticker`, 409 `exists`, `not_on_watchlist`, `out_of_order` or `oversell`, 422 `no_recent_signal`, 503 `not_available` |
+| `POST /trades/batch` | 400 `bad_request`, 403 `scope`; each trade's own refusal is in its result |
+| `POST /reconcile/positions` | 400 `bad_request` or `bad_ticker` |
+| `GET /settings/trading-costs` | 400 `bad_request` |
 | `PATCH /trades/{id}` | 400, 403 `scope`, 404 `trade_not_found`, 409 `oversell` |
 | `DELETE /trades/{id}` | 400, 403 `scope`, 404 `trade_not_found`, 409 `oversell` |
 | `PATCH /positions/{ticker}` | 400, 403 `scope`, 404 `no_open_position`, 503 `not_available` |
 | `GET /alerts` | 400 `bad_request` |
-| `POST /alerts` | 400, 403 `scope` or `limit`, 409 `exists` |
+| `POST /alerts` | 400, 403 `scope` or `limit`, 404 `unknown_ticker`, 409 `exists` |
 | `PATCH /alerts/{id}` | 400, 403 `scope`, 404 `alert_not_found`, 409 `from_plan` or `exists` |
 | `DELETE /alerts/{id}` | 400, 403 `scope`, 404 `alert_not_found`, 409 `from_plan` |
 | `GET /account` | none |
 | `PUT /cash/{market}` | 400, 403 `scope` |
 | `GET /dividends` | 400 `bad_request` or `bad_ticker` |
-| `POST /dividends` | 400 `bad_request` or `bad_ticker`, 403 `scope`, 503 `not_available` |
+| `POST /dividends` | 400 `bad_request` or `bad_ticker`, 403 `scope`, 409 `exists`, 503 `not_available` |
 | `DELETE /dividends/{id}` | 400, 403 `scope`, 404 `dividend_not_found`, 503 `not_available` |
 
 ## What the website shows the user
