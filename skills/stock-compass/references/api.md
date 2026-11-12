@@ -19,7 +19,7 @@ All access is to the signed-in user's own records, and needs a Stock Compass **P
 | Works with | `/api/mcp` | `/api/mcp` and `/api/v1` (REST) |
 | Ends | Disconnect in Settings → AI apps & API | Revoke in the same place, or the key's expiry |
 
-Both allow 60 requests a minute. The count is kept separately for each key and each connected app, not for the account: two keys of one user each get 60. Over MCP every message counts, `initialize` and `tools/list` included, and a write takes two calls (a preview, then the change), so recording 30 trades takes 60 or more. Space a long list of writes about a second apart. Over the limit, the answer is HTTP 429 with `Retry-After: 60`.
+Both allow 60 requests a minute. The count is kept separately for each key and each connected app, not for the account: two keys of one user each get 60. Over MCP every message counts, `initialize` and `tools/list` included, and a write takes two calls (a preview, then the change), so recording 30 trades takes 60 or more. Space a long list of writes about a second apart. Every answer to a request with a key or token says where the count stands: `RateLimit-Limit` (60), `RateLimit-Remaining` (requests left in this minute) and `RateLimit-Reset` (seconds until the minute ends). Over the limit, the answer is HTTP 429 with `Retry-After`, the seconds until requests are taken again.
 
 ## Quick start (REST)
 
@@ -107,6 +107,7 @@ The MCP tools map one to one onto the REST endpoints below:
 | `get_signals` | `GET /signals` |
 | `get_trades` | `GET /trades` |
 | `get_price_alerts` | `GET /alerts` |
+| `get_events` | `GET /events` |
 | `add_to_watchlist` | `POST /watchlist` |
 | `remove_from_watchlist` | `DELETE /watchlist/{ticker}` |
 | `record_trade` | `POST /trades` |
@@ -123,7 +124,7 @@ The MCP tools map one to one onto the REST endpoints below:
 
 Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`), `POST /trades/batch`, `POST /reconcile/positions` and `GET /settings/trading-costs` are REST only.
 
-Tool arguments use the same names as the REST fields, and a tool returns what its endpoint returns. Each tool's `outputSchema` in `tools/list` describes its `structuredContent`: every field its result, a write's preview and a tool error can carry, none required at the top, so one schema covers all three. In MCP, `types` for `get_signals` is a list. Two reads page by default so one answer stays small: `get_watchlist` 100 stocks and `get_signals` 25 signals (REST returns every match without `limit`); `total` and `next_offset` say whether there is more.
+Tool arguments use the same names as the REST fields, and a tool returns what its endpoint returns. Each tool's `outputSchema` in `tools/list` describes its `structuredContent`: every field its result, a write's preview and a tool error can carry, none required at the top, so one schema covers all three. In MCP, `types` for `get_signals` is a list. Three reads page by default so one answer stays small: `get_watchlist` 100 stocks, `get_signals` 25 signals and `get_events` 25 changes (REST returns every match without `limit`, or 100 changes); `total` and `next_offset` say whether there is more.
 
 A tool error comes back as a result marked as an error. Its text is the message described under "Errors" below, and `structuredContent.error` has the same `code` and `message`, with anything REST sends beside the error (such as `later_trades`) next to it. Where a REST message names an endpoint, the tool's names the tool that does it. Besides REST's codes: `insufficient_scope` (a read-only connection tried to write: connect the app again and allow changes on the approval page, or use a key with writes) and `plan_required` (the account is not on Pro).
 
@@ -137,6 +138,7 @@ Base URL: `https://stock-compass.app/api/v1`. It accepts **API keys only**; OAut
 - `GET` needs the read scope; `POST`, `PATCH` and `DELETE` need write.
 - `market` is `hk`, `us` or `cn`.
 - New fields and parameters are optional, so a client written for an earlier version keeps working.
+- A write sent with a top-level field it does not use still goes through, and its answer has `warnings`, such as `["Ignored field this endpoint does not use: qty."]`, so a misspelt field is not lost silently. Fields inside nested objects (a batch's `trades`, a `journal`) are not checked.
 - Every list answers with `total`, the number of items that match before paging, and `next_offset`, the `offset` of the next page, or null on the last one.
 
 ### Tickers
@@ -586,7 +588,7 @@ Deletes a dividend recorded by mistake and takes back what it added to the cash.
 
 ### GET /events
 
-The writes made through API keys and connected apps, newest first: the log Settings → AI apps & API shows. Read scope.
+The writes made through API keys and connected apps, newest first: the log Settings → AI apps & API shows. Read scope. Over MCP it is the `get_events` tool.
 
 Query, all optional: `action` (one, or a comma list such as `trade.record,trade.delete`), `ticker`, `since` and `until` (times, such as `2026-11-12T00:00:00Z`), `limit` (1–500, default 100) and `offset`.
 
