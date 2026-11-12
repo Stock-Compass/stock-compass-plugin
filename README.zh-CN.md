@@ -2,7 +2,7 @@
 
 <p align="center"><a href="README.md">English</a> · <b>简体中文</b></p>
 
-<p align="center"><a href="https://mcptry.com/servers/io.github.Stock-Compass/stock-compass"><img src="https://mcptry.com/badge/io.github.Stock-Compass/stock-compass" alt="mcptry 状态和评分"></a></p>
+<p align="center"><a href="https://mcptry.com/servers/io.github.Stock-Compass/stock-compass"><img src="https://mcptry.com/badge/io.github.Stock-Compass/stock-compass" alt="mcptry 状态和评分"></a> <a href="https://glama.ai/mcp/connectors/io.github.Stock-Compass/stock-compass"><img src="https://glama.ai/mcp/connectors/io.github.Stock-Compass/stock-compass/badges/score.svg" alt="Glama 评分"></a> <a href="https://github.com/Stock-Compass/stock-compass-plugin/releases"><img src="https://img.shields.io/github/v/release/Stock-Compass/stock-compass-plugin" alt="最新版本"></a> <a href="LICENSE"><img src="https://img.shields.io/github/license/Stock-Compass/stock-compass-plugin" alt="许可证"></a></p>
 
 # 在 AI 应用里使用 Stock Compass
 

@@ -606,6 +606,10 @@ Query, all optional: `action` (one, or a comma list such as `trade.record,trade.
   ], "total": 1, "next_offset": null }
 ```
 
+## Versioning
+
+The REST API stays at `/api/v1`. Fields, parameters and endpoints are only added, never renamed or removed, so a client written for an earlier version keeps working; ignore fields you do not know. The MCP server's version (`serverInfo.version`) is raised when the tools change: a minor version for a new tool or field, a major one for a removed or renamed one. What changed in each version is in [CHANGELOG.md](https://github.com/Stock-Compass/stock-compass-plugin/blob/main/CHANGELOG.md).
+
 ## Errors
 
 Every error has the same shape:
