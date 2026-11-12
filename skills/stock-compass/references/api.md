@@ -581,6 +581,24 @@ Body: `{ "market": "hk", "ticker": "700", "ex_div_date": "2026-05-15", "dps": 4.
 
 Deletes a dividend recorded by mistake and takes back what it added to the cash. Answers `{ deleted: true, dividend, cash_reversed, cash }`.
 
+### GET /events
+
+The writes made through API keys and connected apps, newest first: the log Settings → AI apps & API shows. Read scope.
+
+Query, all optional: `action` (one, or a comma list such as `trade.record,trade.delete`), `ticker`, `since` and `until` (times, such as `2026-11-12T00:00:00Z`), `limit` (1–500, default 100) and `offset`.
+
+- `action` is what was done: `trade.record`, `trade.edit`, `trade.delete`, `watchlist.add`, `watchlist.remove`, `position.levels`, `position.exit_mode`, `alert.create`, `alert.edit`, `alert.delete`, `cash.set`, `dividend.record`, `dividend.delete`.
+- `source` is how it came: `{ "type": "key", "id", "name" }` for an API key, `{ "type": "app", "id", "name" }` for an app connected over OAuth; `name` is null once the key or app is gone.
+- `summary` says what changed in a few words (English), as the settings page does; `detail` is what was logged.
+
+```json
+{ "events": [
+    { "id": "…", "action": "trade.record", "at": "2026-11-10T01:00:00Z", "ticker": "0700.HK", "market": "hk",
+      "source": { "type": "key", "id": "…", "name": "Broker sync" }, "summary": "Buy 100 @ 380, 2026-11-10",
+      "detail": { "ticker": "0700.HK", "market": "hk", "type": "buy", "price": 380, "quantity": 100, "traded_at": "2026-11-10" } }
+  ], "total": 1, "next_offset": null }
+```
+
 ## Errors
 
 Every error has the same shape:
@@ -651,9 +669,10 @@ Any request can also give 401, 403 `pro_required`, 429 and 500. Besides those:
 | `GET /account` | none |
 | `PUT /cash/{market}` | 400, 403 `scope` |
 | `GET /dividends` | 400 `bad_request` or `bad_ticker` |
+| `GET /events` | 400 `bad_request` or `bad_ticker` |
 | `POST /dividends` | 400 `bad_request` or `bad_ticker`, 403 `scope`, 409 `exists`, 503 `not_available` |
 | `DELETE /dividends/{id}` | 400, 403 `scope`, 404 `dividend_not_found`, 503 `not_available` |
 
 ## What the website shows the user
 
-Every write made through a key or a connection is logged, with what changed, the stock and the time. The user sees the log in Settings → AI apps & API, which also lists the active keys and connected apps. The website refreshes the watchlist, cash, signals and journal when the user opens it or switches back to it.
+Every write made through a key or a connection is logged, with what changed, the stock and the time. The user sees the log in Settings → AI apps & API, and a client reads it with `GET /events`; which also lists the active keys and connected apps. The website refreshes the watchlist, cash, signals and journal when the user opens it or switches back to it.
