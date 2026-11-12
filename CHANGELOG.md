@@ -2,7 +2,7 @@
 
 Two version numbers move here:
 
-- **Plugin** (`.claude-plugin/plugin.json`): the Claude plugin, its skill and this reference. Tagged `vX.Y.Z` in this repository.
+- **Plugin** (`.claude-plugin/plugin.json`): the Claude plugin, its skill and this reference.
 - **MCP server** (`server.json`, and `serverInfo.version` from `https://stock-compass.app/api/mcp`): raised when the tools change, by their names, arguments or what they return. A new tool or field is a minor version; a removed or renamed one is a major version.
 
 The REST API stays at `/api/v1`: fields and parameters are only added, so a client written for an earlier version keeps working. Dates are UTC.
