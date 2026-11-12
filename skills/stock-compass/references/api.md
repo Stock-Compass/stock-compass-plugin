@@ -414,12 +414,13 @@ For a sale, `journal_closed_shares` takes the place of `journal_entry_id` and `t
 
 ### POST /trades/batch
 
-Up to 50 trades in one request, which counts as one against the rate limit. Body: `{ "trades": [ … ], "on_error": "stop", "dry_run": false }`; each trade is what `POST /trades` takes.
+Up to 50 trades in one request, which counts as one against the rate limit. Body: `{ "trades": [ … ], "on_error": "stop", "dry_run": false, "atomic": false }`; each trade is what `POST /trades` takes.
 
-- The trades are recorded one at a time, in the order given, each exactly as `POST /trades` records it. One that is refused does not undo those before it: there is no all-or-nothing mode.
+- The trades are recorded one at a time, in the order given, each exactly as `POST /trades` records it. One that is refused does not undo those before it, unless `atomic` is true.
 - `on_error`: `stop` (the default) leaves the rest unattempted after a refusal, since a later trade of the same stock usually depends on it; `continue` tries them all.
 - Give every trade an `external_id`: a batch sent again after a timeout then records nothing twice.
 - Answers 200 with `{ dry_run: false, total, recorded, failed, not_attempted, stopped_at, results }`. Each result has `index`; `ok: true` with the `trade` as `POST /trades` answers it, or `ok: false` with the `status` and `error` it would have given.
+- **`atomic: true`** records every trade or none. Each trade is checked as `POST /trades` checks it, and against the batch's earlier trades: the same `external_id` twice gives 409 `exists`, and a trade dated before an earlier trade of the same stock in the batch that it would change gives 409 `out_of_order` (send the batch in date order, or that trade with `allow_out_of_order: true`). Then all of them are recorded in one database transaction, with any stock added (`add_to_watchlist`), and the tags and exit modes saved in it too. A refusal there (an oversell by date, a full watchlist, an `external_id` already recorded) leaves nothing recorded. The answer has `atomic: true`: every trade recorded, or `recorded: 0` with the one trade refused in `results` and `stopped_at` its index. `on_error` does not go with it (400). A batch sent again after a timeout either was recorded whole (the first trade with an `external_id` then comes back 409 `exists`) or not at all.
 - **`dry_run: true`** records nothing and says what each trade would be: `new` (no trade with its `external_id` yet; without one, this is all it can say), `match` (a trade with that `external_id` is recorded, with the same side, price, quantity and date), `conflict` (one is, and it differs; the `trade` is there), or `invalid` (it would be refused; `error` says why). It checks the fields, the `external_id` and the watchlist, not the holdings, so an oversell shows only when the batch is really sent. The answer counts each kind: `{ dry_run: true, total, new, match, conflict, invalid, results }`.
 
 ### POST /reconcile/positions
