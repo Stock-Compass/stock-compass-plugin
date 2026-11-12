@@ -116,7 +116,7 @@ The MCP tools map one to one onto the REST endpoints below:
 
 Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`), `POST /trades/batch`, `POST /reconcile/positions` and `GET /settings/trading-costs` are REST only.
 
-Tool arguments use the same names as the REST fields, and a tool returns what its endpoint returns. In MCP, `types` for `get_signals` is a list. Two reads page by default so one answer stays small: `get_watchlist` 100 stocks and `get_signals` 25 signals (REST returns every match without `limit`); `total` and `next_offset` say whether there is more.
+Tool arguments use the same names as the REST fields, and a tool returns what its endpoint returns. Each tool's `outputSchema` in `tools/list` describes its `structuredContent`: every field its result, a write's preview and a tool error can carry, none required at the top, so one schema covers all three. In MCP, `types` for `get_signals` is a list. Two reads page by default so one answer stays small: `get_watchlist` 100 stocks and `get_signals` 25 signals (REST returns every match without `limit`); `total` and `next_offset` say whether there is more.
 
 A tool error comes back as a result marked as an error. Its text is the message described under "Errors" below, and `structuredContent.error` has the same `code` and `message`, with anything REST sends beside the error (such as `later_trades`) next to it. Where a REST message names an endpoint, the tool's names the tool that does it. Besides REST's codes: `insufficient_scope` (a read-only connection tried to write: connect the app again and allow changes on the approval page, or use a key with writes) and `plan_required` (the account is not on Pro).
 
