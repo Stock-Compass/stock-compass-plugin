@@ -633,6 +633,16 @@ Query, all optional: `action` (one, or a comma list such as `trade.record,trade.
   ], "total": 1, "next_offset": null }
 ```
 
+### GET /export
+
+Every record of the user's own in one answer, for a backup or a move to another tool. Read scope.
+
+- `watchlist`, `trades`, `journal`, `alerts`, `strategies`, `dividends`: each as its list endpoint gives it, every page, in every market. Each strategy also has its `rules` as `GET /strategies/{id}` gives them, and `export`, the page's **Export JSON** that **Import** takes as it is.
+- `cash`: as `GET /account`. `exported_at`: when it was made.
+- Not in it: API keys, connected apps and their grants, the change log (`GET /events`) and anything about the plan, so a read-only key cannot reach more through it than the records themselves.
+
+It is one request against the rate limit, but a large answer (a few hundred KB for a busy account); ask for it when it is needed, not on a schedule.
+
 ## Versioning
 
 The REST API stays at `/api/v1`. Fields, parameters and endpoints are only added, never renamed or removed, so a client written for an earlier version keeps working; ignore fields you do not know. The MCP server's version (`serverInfo.version`) is raised when the tools change: a minor version for a new tool or field, a major one for a removed or renamed one. What changed in each version is in [CHANGELOG.md](https://github.com/Stock-Compass/stock-compass-plugin/blob/main/CHANGELOG.md).
@@ -707,6 +717,7 @@ Any request can also give 401, 403 `pro_required`, 429 and 500. Besides those:
 | `PATCH /alerts/{id}` | 400, 403 `scope`, 404 `alert_not_found`, 409 `from_plan` or `exists` |
 | `DELETE /alerts/{id}` | 400, 403 `scope`, 404 `alert_not_found`, 409 `from_plan` |
 | `GET /account` | none |
+| `GET /export` | none |
 | `PUT /cash/{market}` | 400, 403 `scope` |
 | `GET /dividends` | 400 `bad_request` or `bad_ticker` |
 | `GET /events` | 400 `bad_request` or `bad_ticker` |
