@@ -2,7 +2,7 @@
 
 <p align="center"><b>English</b> · <a href="README.zh-CN.md">简体中文</a></p>
 
-<p align="center"><a href="https://mcptry.com/servers/io.github.Stock-Compass/stock-compass"><img src="https://mcptry.com/badge/io.github.Stock-Compass/stock-compass" alt="mcptry status and score"></a> <a href="https://glama.ai/mcp/connectors/io.github.Stock-Compass/stock-compass"><img src="https://glama.ai/mcp/connectors/io.github.Stock-Compass/stock-compass/badges/score.svg" alt="Glama score"></a> <a href="LICENSE"><img src="https://img.shields.io/github/license/Stock-Compass/stock-compass-plugin" alt="License"></a></p>
+<p align="center"><a href="https://mcptry.com/servers/io.github.Stock-Compass/stock-compass"><img src="https://mcptry.com/badge/io.github.Stock-Compass/stock-compass" alt="mcptry status and score"></a> <a href="https://glama.ai/mcp/connectors/io.github.Stock-Compass/stock-compass"><img src="https://glama.ai/mcp/connectors/io.github.Stock-Compass/stock-compass/badges/score.svg" alt="Glama score"></a> <a href="https://github.com/Stock-Compass/stock-compass-plugin/releases"><img src="https://img.shields.io/github/v/release/Stock-Compass/stock-compass-plugin" alt="Latest release"></a> <a href="LICENSE"><img src="https://img.shields.io/github/license/Stock-Compass/stock-compass-plugin" alt="License"></a></p>
 
 # Stock Compass for AI apps
 
