@@ -15,7 +15,7 @@ All access is to the signed-in user's own records, and needs a Stock Compass **P
 | Best for | AI apps that support MCP with OAuth (Claude, ChatGPT, many others) | Scripts, command-line agents, and apps that can only send a fixed header |
 | How it starts | The app opens stock-compass.app; the user signs in and approves | The user creates a key in Settings → AI apps & API (设置 → AI 应用与 API) |
 | Secret the user handles | None | The key, shown once |
-| Read only or read and write | Chosen on the approval page; read only by default | Chosen when the key is created: **Allow writes** (允许写入) |
+| Read only or read and write | Chosen on the approval page; read only by default | Chosen when the key is created, under **Access** (权限): read only, every change, or some kinds of change |
 | Works with | `/api/mcp` | `/api/mcp` and `/api/v1` (REST) |
 | Ends | Disconnect in Settings → AI apps & API | Revoke in the same place, or the key's expiry |
 
@@ -23,7 +23,7 @@ Both allow 60 requests a minute. The count is kept separately for each key and e
 
 ## Quick start (REST)
 
-1. Create a key on the site: Settings → AI apps & API (设置 → AI 应用与 API), for example https://stock-compass.app/hk/settings/api-keys. Tick **Allow writes** (允许写入) to try a write.
+1. Create a key on the site: Settings → AI apps & API (设置 → AI 应用与 API), for example https://stock-compass.app/hk/settings/api-keys. Choose **Read and every change** (读取和所有修改) under **Access** (权限) to try a write.
 2. Keep it out of your code:
    ```bash
    export STOCK_COMPASS_KEY=sc_…
@@ -52,7 +52,11 @@ Recording a trade through either one writes it into Stock Compass. Neither ever 
 ## API keys
 
 - A key looks like `sc_` followed by 43 letters, digits, `-` or `_`. It is shown once, when it is created. Stock Compass stores only a SHA-256 hash of it, so it cannot be shown again.
-- When creating a key, the user gives it a name (up to 60 characters) and picks an expiry: 30 days, 90 days, 1 year, or never. Writes are allowed only if **Allow writes** (允许写入) is ticked.
+- When creating a key, the user gives it a name (up to 60 characters) and picks an expiry: 30 days, 90 days, 1 year, or never. **Access** (权限) sets what the key may change:
+  - **Read only** (只读): nothing.
+  - **Read and every change** (读取和所有修改): every write (scope `write`).
+  - **Read and some changes** (读取和部分修改): only the kinds ticked: **Record trades** (记交易, `trades:write`: `POST`/`PATCH`/`DELETE /trades`, `POST /trades/batch`), **Change the watchlist** (改自选, `watchlist:write`: `POST /watchlist`, `DELETE /watchlist/{ticker}`), **Change stops and targets** (改止损和目标, `positions:write`: `PATCH /positions/{ticker}`) and **Change price alerts** (改价格提醒, `alerts:write`: `POST`/`PATCH`/`DELETE /alerts`). Cash and dividends need every change. A trade sent with `add_to_watchlist: true` for a stock not on the watchlist needs `watchlist:write` too. Every kind ticked is the same as every change.
+  - The same scopes hold over MCP with that key. An app connected over OAuth is either read only or read and write.
 - A user can have at most 5 active keys. Revoking a key takes effect at once.
 - In the last 14 days before a key expires, every REST answer carries an `X-API-Key-Expires-At` header (an ISO time). `GET /me` gives the key's and the plan's end dates. A revoked or expired key gets 401 `key_revoked` or `key_expired`.
 - A key with an end date that was used in the last 30 days also gets a reminder to the account's email address 7 days before it expires, and a last one in its final 24 hours (weekends not counted, so a key ending on a weekend gets it before the weekend). These are account emails: the user can turn them off in the app's email settings.
@@ -594,7 +598,7 @@ The `message` is written for the user; pass it on.
 | 400 | `bad_request`, `bad_ticker` | A field is missing or invalid; the message says which. |
 | 401 | `unauthorized` | No key, or a key Stock Compass does not know. |
 | 401 | `key_revoked`, `key_expired` | The key was revoked, or has expired; the message gives the date. Create a new key. |
-| 403 | `scope` | A read-only key tried to write. |
+| 403 | `scope` | A read-only key tried to write, or a key without the kind of write the request needs; the message names the scope. |
 | 403 | `pro_required` | The account is not on Pro. |
 | 403 | `limit` | Watchlist or price-alert limit reached. |
 | 404 | `not_found` | Unknown endpoint. |
