@@ -19,7 +19,7 @@ All access is to the signed-in user's own records, and needs a Stock Compass **P
 | Works with | `/api/mcp` | `/api/mcp` and `/api/v1` (REST) |
 | Ends | Disconnect in Settings → AI apps & API | Revoke in the same place, or the key's expiry |
 
-Both allow 60 requests a minute. The count is kept separately for each key and each connected app, not for the account: two keys of one user each get 60. Over MCP every message counts, `initialize` and `tools/list` included, and a write takes two calls (a preview, then the change), so recording 30 trades takes 60 or more. Space a long list of writes about a second apart. Every answer to a request with a key or token says where the count stands: `RateLimit-Limit` (60), `RateLimit-Remaining` (requests left in this minute) and `RateLimit-Reset` (seconds until the minute ends). Over the limit, the answer is HTTP 429 with `Retry-After`, the seconds until requests are taken again.
+Both allow 60 requests a minute. The count is kept separately for each key and each connected app, not for the account: two keys of one user each get 60. Over MCP every message counts, `initialize` and `tools/list` included, and a write takes two calls (a preview, then the change), so recording 30 trades takes 60 or more. Space a long list of writes about a second apart. Every answer to a request with a key or token says where the count stands: `RateLimit-Limit` (60), `RateLimit-Remaining` (requests left in this minute) and `RateLimit-Reset` (seconds until the minute ends). Over the limit, the answer is HTTP 429 with `Retry-After`, the seconds until requests are taken again. Over MCP that answer is a JSON-RPC error with the request's `id`, code -32000 and `data: { "status": 429, "code": "rate_limited" }`.
 
 ## Quick start (REST)
 
@@ -616,6 +616,8 @@ Every error has the same shape:
 
 The `message` is written for the user; pass it on.
 
+Where one `code` covers several cases, `error.reason` says which, so a client can branch without reading the message. For `exists`: `on_watchlist` (the stock is already on the watchlist), `external_id_recorded` (a trade or dividend with this `external_id` is already recorded; it comes back beside the error), `external_id_in_batch` (two trades of one batch carry the same `external_id`) and `same_alert` (the same active alert is already set). Other codes have no `reason` for now. Over MCP it is `structuredContent.error.reason`.
+
 - Every answer has an `x-request-id` header. A 500 also gives it in the message and as `error.request_id`: quote it when reporting the problem.
 - A 401 has `WWW-Authenticate: Bearer realm="Stock Compass API"`. A 401 or an unknown endpoint names this reference in its message.
 - A path that exists under other methods gives 405 `method_not_allowed`, with an `Allow` header listing them.
@@ -644,7 +646,7 @@ The `message` is written for the user; pass it on.
 | 409 | `oversell` | Selling more than was held on that date; or a correction or deletion that would leave a sale of shares not held. |
 | 409 | `out_of_order` | Recording a trade that comes before the stock's later trades (by date, or by `executed_at` within a date), when it would change them (the body also has `later_trades`). |
 | 422 | `no_recent_signal` | `trigger: signal` with no recent signal. |
-| 429 | `rate_limited` | More than 60 requests in a minute; retry after 60 seconds. |
+| 429 | `rate_limited` | More than 60 requests in a minute; retry after the seconds `Retry-After` gives. |
 | 500 | `internal` | Something went wrong on the server. Try again later. |
 | 503 | `not_available` | Recording dividends through the API is not switched on yet; record it on the website's Dividends page. |
 

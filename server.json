@@ -3,7 +3,7 @@
   "name": "io.github.Stock-Compass/stock-compass",
   "title": "Stock Compass",
   "description": "Watchlist, signals, trades and journal for HK, US and China A-share stocks. Records only; no orders.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "websiteUrl": "https://stock-compass.app/en/ai",
   "repository": {
     "url": "https://github.com/Stock-Compass/stock-compass-plugin",
