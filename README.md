@@ -38,7 +38,7 @@ The AI reads the [setup guide](https://stock-compass.app/ai/setup.md) and walks 
 
 | | What it does | Works with |
 | --- | --- | --- |
-| **MCP connector** at `https://stock-compass.app/api/mcp` | Gives an AI 19 tools on your own records: 10 that read and 9 that write | Any app that supports remote MCP servers: Claude, ChatGPT, Claude Code, Cursor and others |
+| **MCP connector** at `https://stock-compass.app/api/mcp` | Gives an AI 20 tools on your own records: 11 that read and 9 that write | Any app that supports remote MCP servers: Claude, ChatGPT, Claude Code, Cursor and others |
 | **Skill**, `skills/stock-compass/` | Teaches an AI how all of Stock Compass works and the rules for using it. It covers signals, strategies and every indicator, backtests, trades, fees, the journal, execution discipline, sizing, alerts, emails, plans, API keys and the REST API. | Apps that load Agent Skills (`SKILL.md`). For other apps, the files can be read as plain documentation. |
 | **Claude plugin**, `.claude-plugin/` | Installs the connector and the skill in one step | Claude (web, desktop app, Cowork) and Claude Code |
 

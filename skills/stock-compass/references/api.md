@@ -109,6 +109,7 @@ The MCP tools map one to one onto the REST endpoints below:
 | `get_price_alerts` | `GET /alerts` |
 | `get_events` | `GET /events` |
 | `get_account` | `GET /account` |
+| `get_dividends` | `GET /dividends` |
 | `add_to_watchlist` | `POST /watchlist` |
 | `remove_from_watchlist` | `DELETE /watchlist/{ticker}` |
 | `record_trade` | `POST /trades` |
@@ -123,9 +124,9 @@ The MCP tools map one to one onto the REST endpoints below:
 | `edit_price_alert` | `PATCH /alerts/{id}` |
 | `delete_price_alert` | `DELETE /alerts/{id}` |
 
-Setting cash and dividends (`PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`), `POST /trades/batch`, `POST /reconcile/positions` and `GET /settings/trading-costs` are REST only.
+Setting cash and recording or deleting dividends (`PUT /cash/{market}`, `POST`/`DELETE /dividends`), `POST /trades/batch`, `POST /reconcile/positions` and `GET /settings/trading-costs` are REST only.
 
-Tool arguments use the same names as the REST fields, and a tool returns what its endpoint returns. Each tool's `outputSchema` in `tools/list` describes its `structuredContent`: every field its result, a write's preview and a tool error can carry, none required at the top, so one schema covers all three. In MCP, `types` for `get_signals` is a list. Three reads page by default so one answer stays small: `get_watchlist` 100 stocks, `get_signals` 25 signals and `get_events` 25 changes (REST returns every match without `limit`, or 100 changes); `total` and `next_offset` say whether there is more.
+Tool arguments use the same names as the REST fields, and a tool returns what its endpoint returns. An argument the tool does not take is named in `warnings` on the result, and on a write's preview, so it can be put right before the user agrees. Each tool's `outputSchema` in `tools/list` describes its `structuredContent`: every field its result, a write's preview and a tool error can carry, none required at the top, so one schema covers all three. In MCP, `types` for `get_signals` is a list. Three reads page by default so one answer stays small: `get_watchlist` 100 stocks, `get_signals` 25 signals and `get_events` 25 changes (REST returns every match without `limit`, or 100 changes); `total` and `next_offset` say whether there is more.
 
 A tool error comes back as a result marked as an error. Its text is the message described under "Errors" below, and `structuredContent.error` has the same `code` and `message`, with anything REST sends beside the error (such as `later_trades`) next to it. Where a REST message names an endpoint, the tool's names the tool that does it. Besides REST's codes: `insufficient_scope` (a read-only connection tried to write: connect the app again and allow changes on the approval page, or use a key with writes) and `plan_required` (the account is not on Pro).
 
@@ -139,7 +140,7 @@ Base URL: `https://stock-compass.app/api/v1`. It accepts **API keys only**; OAut
 - `GET` needs the read scope; `POST`, `PATCH` and `DELETE` need write.
 - `market` is `hk`, `us` or `cn`.
 - New fields and parameters are optional, so a client written for an earlier version keeps working.
-- A write sent with a field it does not use still goes through, and its answer has `warnings`, such as `["Ignored field, not used by this endpoint or not for this request: trades[1].qty."]`, so a misspelt field is not lost silently. It names fields inside a batch's trades too, and fields a request had no use for, such as `trigger` on a sale. A trade the batch refused is left out, since it was not read to the end. With `dry_run` the warnings come back as well, so a batch can be checked before it is sent for real.
+- A write sent with a field it does not use still goes through, and its answer has `warnings`, such as `["Ignored field, not used by this endpoint or not for this request: trades[1].qty."]`, so a misspelt field is not lost silently. It names fields inside a batch's trades too, and fields a request had no use for, such as `trigger` on a sale. A trade the batch refused is left out, since it was not read to the end. With `dry_run` the warnings come back as well, so a batch can be checked before it is sent for real. Query parameters a request does not use are named the same way, in their own line of `warnings` (`?tickr=AAPL` would otherwise answer for every stock).
 - Every list answers with `total`, the number of items that match before paging, and `next_offset`, the `offset` of the next page, or null on the last one.
 
 ### Tickers
