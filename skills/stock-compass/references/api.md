@@ -45,7 +45,7 @@ Both allow 60 requests a minute. The count is kept separately for each key and e
    curl -s -X DELETE https://stock-compass.app/api/v1/trades/TRADE_ID -H "Authorization: Bearer $STOCK_COMPASS_KEY"
    ```
 
-The same from Python, with only the standard library. Send a `User-Agent` of your own: the site's firewall refuses the default one of Python's `urllib` with a plain-text 403 `error code: 1010` before the request reaches the API (`requests`, `curl` and most HTTP libraries are not affected).
+The same from Python, with only the standard library:
 
 ```python
 import json, os, urllib.request, urllib.error
@@ -57,9 +57,7 @@ def call(method, path, body=None):
     req = urllib.request.Request(
         BASE + path, method=method,
         data=None if body is None else json.dumps(body).encode(),
-        # Name your client: urllib's default User-Agent is refused (403, "error code: 1010").
-        headers={"Authorization": f"Bearer {KEY}", "Content-Type": "application/json",
-                 "User-Agent": "my-script/1.0"},
+        headers={"Authorization": f"Bearer {KEY}", "Content-Type": "application/json"},
     )
     try:
         with urllib.request.urlopen(req) as r:
