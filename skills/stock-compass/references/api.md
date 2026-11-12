@@ -67,7 +67,7 @@ Recording a trade through either one writes it into Stock Compass. Neither ever 
 
 The MCP endpoint is `https://stock-compass.app/api/mcp`. It uses Streamable HTTP, is stateless and answers in JSON.
 
-- **With OAuth**: add the address as a remote MCP server and choose OAuth. The client finds the sign-in details itself. A request without a token gets HTTP 401, with a `WWW-Authenticate` header that points to `https://stock-compass.app/.well-known/oauth-protected-resource/api/mcp`.
+- **With OAuth**: add the address as a remote MCP server and choose OAuth. The client finds the sign-in details itself. A request without a token gets HTTP 401, with a `WWW-Authenticate` header that points to `https://stock-compass.app/.well-known/oauth-protected-resource/api/mcp`. The one exception is `server/discover` (protocol 2026-07-28), which answers without a token: it gives only the versions, capabilities and instructions.
 - **With an API key**: add the address as a remote MCP server and set the header `Authorization: Bearer sc_…`. For example, in Claude Code:
   ```bash
   claude mcp add --scope user --transport http stock-compass https://stock-compass.app/api/mcp --header "Authorization: Bearer sc_…"
