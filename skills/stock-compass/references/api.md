@@ -74,6 +74,7 @@ The MCP endpoint is `https://stock-compass.app/api/mcp`. It uses Streamable HTTP
   ```
   `--scope user` makes it available in every folder; without it, only in the one the command ran in. Other clients have their own setting for request headers.
 - **For client developers**:
+  - A client may use an https URL as its `client_id` instead of registering (Client ID Metadata Documents; the authorization server metadata has `client_id_metadata_document_supported: true`). The document there must give the same `client_id`, a `client_name` and one to ten `redirect_uris`, and no client secret (`token_endpoint_auth_method` `none`). It is fetched at each authorization request, without following redirects, within 5 seconds and 10 KB; if it cannot be fetched, the copy from the last day is used. The approval page names the site that serves the document. Claude Code and VS Code connect this way.
   - Clients register themselves (dynamic client registration). They are public clients, with no secret, and PKCE with `S256` is required. Redirect URIs (one to ten) are https, http on localhost, or an app scheme, with no fragment. Registrations from sites other than the known apps are limited to 10 an hour from one address.
   - An access token lasts an hour. A refresh token lasts 90 days and is replaced at each use; an old one sent again revokes that connection's tokens. So a connection unused for 90 days has to be approved again.
   - A request with no scope asks for both read and write; the user still chooses on the approval page.
