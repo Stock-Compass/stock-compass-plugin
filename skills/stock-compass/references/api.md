@@ -108,6 +108,7 @@ The MCP tools map one to one onto the REST endpoints below:
 | `get_trades` | `GET /trades` |
 | `get_price_alerts` | `GET /alerts` |
 | `get_events` | `GET /events` |
+| `get_account` | `GET /account` |
 | `add_to_watchlist` | `POST /watchlist` |
 | `remove_from_watchlist` | `DELETE /watchlist/{ticker}` |
 | `record_trade` | `POST /trades` |
@@ -122,7 +123,7 @@ The MCP tools map one to one onto the REST endpoints below:
 | `edit_price_alert` | `PATCH /alerts/{id}` |
 | `delete_price_alert` | `DELETE /alerts/{id}` |
 
-Cash and dividends (`GET /account`, `PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`), `POST /trades/batch`, `POST /reconcile/positions` and `GET /settings/trading-costs` are REST only.
+Setting cash and dividends (`PUT /cash/{market}`, `GET`/`POST`/`DELETE /dividends`), `POST /trades/batch`, `POST /reconcile/positions` and `GET /settings/trading-costs` are REST only.
 
 Tool arguments use the same names as the REST fields, and a tool returns what its endpoint returns. Each tool's `outputSchema` in `tools/list` describes its `structuredContent`: every field its result, a write's preview and a tool error can carry, none required at the top, so one schema covers all three. In MCP, `types` for `get_signals` is a list. Three reads page by default so one answer stays small: `get_watchlist` 100 stocks, `get_signals` 25 signals and `get_events` 25 changes (REST returns every match without `limit`, or 100 changes); `total` and `next_offset` say whether there is more.
 
@@ -132,13 +133,13 @@ A tool error comes back as a result marked as an error. Its text is the message 
 
 ## REST API
 
-Base URL: `https://stock-compass.app/api/v1`. It accepts **API keys only**; OAuth tokens work only with `/api/mcp`. An OpenAPI 3.1 description is at `GET /api/v1/openapi.json`, without a key; tools such as Postman import it.
+Base URL: `https://stock-compass.app/api/v1`. It accepts **API keys only**; OAuth tokens work only with `/api/mcp`. An OpenAPI 3.1 description is at `GET /api/v1/openapi.json`, without a key; tools such as Postman import it. It names each endpoint's scope, the rate-limit headers and `warnings`; the answers' full shapes are here.
 
 - Requests and responses are JSON.
 - `GET` needs the read scope; `POST`, `PATCH` and `DELETE` need write.
 - `market` is `hk`, `us` or `cn`.
 - New fields and parameters are optional, so a client written for an earlier version keeps working.
-- A write sent with a top-level field it does not use still goes through, and its answer has `warnings`, such as `["Ignored field this endpoint does not use: qty."]`, so a misspelt field is not lost silently. Fields inside nested objects (a batch's `trades`, a `journal`) are not checked.
+- A write sent with a field it does not use still goes through, and its answer has `warnings`, such as `["Ignored field, not used by this endpoint or not for this request: trades[1].qty."]`, so a misspelt field is not lost silently. It names fields inside a batch's trades too, and fields a request had no use for, such as `trigger` on a sale. A trade the batch refused is left out, since it was not read to the end. With `dry_run` the warnings come back as well, so a batch can be checked before it is sent for real.
 - Every list answers with `total`, the number of items that match before paging, and `next_offset`, the `offset` of the next page, or null on the last one.
 
 ### Tickers
