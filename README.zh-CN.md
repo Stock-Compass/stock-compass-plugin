@@ -95,7 +95,7 @@ Stock Compass 只以哈希形式保存登录令牌和 API 密钥，并记录每�
 
 ## 支持
 
-发邮件到 [support@stock-compass.app](mailto:support@stock-compass.app)，或者[提交 issue](https://github.com/Stock-Compass/stock-compass-plugin/issues)。
+AI 应用连不上 Stock Compass 时，先看[状态页](https://stats.uptimerobot.com/Vl3KwcrPoi)：每五分钟检查一次网站和 API。其他问题发邮件到 [support@stock-compass.app](mailto:support@stock-compass.app)，或者[提交 issue](https://github.com/Stock-Compass/stock-compass-plugin/issues)。
 
 ## 许可证
 

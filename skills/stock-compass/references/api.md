@@ -657,6 +657,7 @@ The `message` is written for the user; pass it on.
 
 Where one `code` covers several cases, `error.reason` says which, so a client can branch without reading the message. For `exists`: `on_watchlist` (the stock is already on the watchlist), `external_id_recorded` (a trade or dividend with this `external_id` is already recorded; it comes back beside the error), `external_id_in_batch` (two trades of one batch carry the same `external_id`) and `same_alert` (the same active alert is already set). Other codes have no `reason` for now. Over MCP it is `structuredContent.error.reason`.
 
+- Whether the site and the API are up: the [status page](https://stats.uptimerobot.com/Vl3KwcrPoi), checked every five minutes. Check it first when calls fail with a 5xx or time out.
 - Every answer has an `x-request-id` header. A 500 also gives it in the message and as `error.request_id`: quote it when reporting the problem.
 - A 401 has `WWW-Authenticate: Bearer realm="Stock Compass API"`. A 401 or an unknown endpoint names this reference in its message.
 - A path that exists under other methods gives 405 `method_not_allowed`, with an `Allow` header listing them.
