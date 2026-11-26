@@ -7,6 +7,12 @@ Two version numbers move here:
 
 The REST API stays at `/api/v1`: fields and parameters are only added, so a client written for an earlier version keeps working. Dates are UTC.
 
+## 1.3.1 · 2026-11-26 (MCP server 2.1.0)
+
+- The new black-and-white logo as the plugin icon.
+- The READMEs link the official MCP Registry entry and the public status page; the API reference links the status page too.
+- No change to the tools.
+
 ## 1.3.0 · 2026-11-13 (MCP server 2.1.0)
 
 - Three read tools: `get_events` (the change log), `get_account` (the cash in each market) and `get_dividends`. 20 tools: 11 that read and 9 that write.
